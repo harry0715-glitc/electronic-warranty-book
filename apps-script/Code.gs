@@ -772,6 +772,19 @@ function setLineConfigForSetup(token, secret, webhookKey, liffId, adminSendPin) 
   return getLineConfigStatus_();
 }
 
+function authorizeLineMessagingAccess() {
+  ensureLineAccessToken_();
+  const response = UrlFetchApp.fetch('https://api.line.me/v2/bot/info', {
+    method: 'get',
+    headers: buildLineAuthHeaders_(),
+    muteHttpExceptions: true
+  });
+  return {
+    statusCode: response.getResponseCode(),
+    body: response.getContentText()
+  };
+}
+
 function output_(data, callback) {
   var text = JSON.stringify(data);
   if (callback) return ContentService.createTextOutput(callback + '(' + text + ')').setMimeType(ContentService.MimeType.JAVASCRIPT);
