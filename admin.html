@@ -50,7 +50,7 @@
       <p>此頁用來建立新的電子保固書案件。建立完成後，系統會自動產生 <strong>完整保固書網址</strong>、<strong>LIFF 專屬連結</strong> 與 <strong>可直接轉傳給客戶的分享文案</strong>。</p>
       <div class="steps">
         <div class="step"><strong>1. 填寫案件資料</strong><span>案件編號由系統自動產生，不需手動輸入。</span></div>
-        <div class="step"><strong>2. 送出前再次確認</strong><span>本頁送出後不提供直接編輯；若有誤植，可至 Google Sheet 修正。</span></div>
+        <div class="step"><strong>2. 送出前再次確認</strong><span>本頁送出後不提供直接編輯；如需修改請洽管理者。</span></div>
         <div class="step"><strong>3. 複製專屬連結</strong><span>建立成功後可直接複製 LIFF 連結與分享文案傳給客戶。</span></div>
       </div>
       <div class="quick-tools">
@@ -68,7 +68,7 @@
         <div class="form-note">
           <ul class="notice-list">
             <li>請先確認客戶名稱、案件名稱、地址與保固日期是否正確。</li>
-            <li>本頁送出後不提供直接修改；若日後發現誤植，可到 Google Sheet 修正資料。</li>
+            <li>本頁送出後不提供直接修改；如需修改請洽管理者。</li>
             <li>建立成功後會自動產生該案件專屬 LIFF 連結與分享文案。</li>
           </ul>
         </div>
@@ -171,7 +171,7 @@
         `保固期間：${formatDateText(record.warrantyStart)} 至 ${formatDateText(record.warrantyEnd)}`,
         '',
         `按下「確定」後將${actionLabel}，本頁不提供直接修改。`,
-        `若日後發現誤植，仍可至 Google Sheet 修正。`
+        `如需修改請洽管理者。`
       ].join('\n'));
     }
 
