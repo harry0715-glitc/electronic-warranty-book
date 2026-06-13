@@ -170,15 +170,23 @@
       return response.json();
     }
 
+    function normalizeIsoDateText(value) {
+      const text = String(value || '').trim();
+      const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+      return match ? `${match[1]}-${match[2]}-${match[3]}` : '';
+    }
+
     function formatIsoDateToRoc(isoText) {
-      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoText || '');
+      const normalized = normalizeIsoDateText(isoText);
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
       if (!match) return isoText || '未設定';
       const year = String(Number(match[1]) - 1911);
       return `${year} 年 ${match[2]} 月 ${match[3]} 日`;
     }
 
     function toRocDateParts(isoText) {
-      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoText || '');
+      const normalized = normalizeIsoDateText(isoText);
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
       if (!match) return ['中華民國', '115 年', '06 月', '13 日'];
       return ['中華民國', String(Number(match[1]) - 1911) + ' 年', match[2] + ' 月', match[3] + ' 日'];
     }
@@ -186,9 +194,11 @@
     function deriveStatusText(start, end) {
       const today = new Date();
       today.setHours(0,0,0,0);
-      const startDate = new Date((start || '') + 'T00:00:00');
-      const endDate = new Date((end || '') + 'T00:00:00');
-      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return '日期未設定';
+      const startDateText = normalizeIsoDateText(start);
+      const endDateText = normalizeIsoDateText(end);
+      const startDate = new Date(startDateText + 'T00:00:00');
+      const endDate = new Date(endDateText + 'T00:00:00');
+      if (!startDateText || !endDateText || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return '日期未設定';
       if (today < startDate) return '尚未生效';
       if (today > endDate) return '已過保';
       return '保固生效中';
