@@ -79,10 +79,16 @@ window.APP_CONFIG = {
 
 ## Apps Script 狀態
 
-`apps-script/Code.gs` 已同步調整：
-- 若未提供 `caseId`，後端也會自動產生案件編號
-- 保固狀態由後端依日期自動判定
-- 已移除客服連結 / 備註欄的依賴
+已完成：
+- 已建立 Google Sheet 資料庫容器
+- 已建立並綁定本機 `clasp` Apps Script 專案
+- 已推送 `Code.gs` 與 `appsscript.json`
+- 已把報修連結改為 LINE 官方帳號
+
+目前卡點：
+- `clasp deploy` 雖可建立 deployment，但目前實測沒有產生可用的 Web App entry point
+- 因此 `apiBase` 目前先保持空白，避免前端指向失效 `/exec`
+- 下一步需在 Apps Script 編輯器內完成一次正式 Web App deployment，拿到可用 `/exec` URL 後再回填 `api-config.js`
 
 ## 目前已完成
 

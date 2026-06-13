@@ -1,41 +1,90 @@
 const SHEET_NAMES = {
-  WARRANTIES: 'Warranties',
-  REPAIRS: 'Repairs'
+  WARRANTIES: 'Warranties'
 };
 
 function doGet(e) {
   const action = (e.parameter.action || '').trim();
+
   if (action === 'getWarranty') {
     const result = getWarrantyById_(e.parameter.id || '');
     return output_(result, e.parameter.callback);
   }
-  if (action === 'health') {
-    return output_({ success: true, service: 'warranty-apps-script', time: new Date().toISOString() }, e.parameter.callback);
+
+  if (action === 'createWarranty') {
+    try {
+      const warranty = normalizeWarranty_(extractWarrantyInput_(e.parameter || {}));
+      upsertWarranty_(warranty);
+      return output_({ success: true, caseId: warranty.caseId, warranty: warranty }, e.parameter.callback);
+    } catch (error) {
+      return output_({ success: false, message: error.message, stack: error.stack }, e.parameter.callback);
+    }
   }
+
+  if (action === 'health') {
+    return output_({
+      success: true,
+      service: 'warranty-apps-script',
+      time: new Date().toISOString(),
+      spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
+      spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl()
+    }, e.parameter.callback);
+  }
+
   return output_({ success: false, message: 'Unknown action' }, e.parameter.callback);
 }
 
 function doPost(e) {
   try {
-    const payload = JSON.parse(e.postData.contents || '{}');
+    const payload = parsePayload_(e);
     const action = payload.action || '';
 
     if (action === 'createWarranty') {
-      const warranty = normalizeWarranty_(payload.warranty || {});
+      const warranty = normalizeWarranty_(extractWarrantyInput_(payload.warranty || payload));
       upsertWarranty_(warranty);
       return output_({ success: true, caseId: warranty.caseId, warranty: warranty });
-    }
-
-    if (action === 'createRepair') {
-      const repair = normalizeRepair_(payload.repair || {});
-      appendRepair_(repair);
-      return output_({ success: true, repair: repair });
     }
 
     return output_({ success: false, message: 'Unknown action' });
   } catch (error) {
     return output_({ success: false, message: error.message, stack: error.stack });
   }
+}
+
+function parsePayload_(e) {
+  const raw = e && e.postData && e.postData.contents ? String(e.postData.contents) : '';
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch (jsonError) {
+      // fall through to form parameters
+    }
+  }
+  return e && e.parameter ? e.parameter : {};
+}
+
+function extractWarrantyInput_(input) {
+  const issuer = input.issuer || {};
+  return {
+    caseId: input.caseId,
+    projectName: input.projectName,
+    customerName: input.customerName,
+    customerPhone: input.customerPhone,
+    address: input.address,
+    scope: input.scope,
+    completionDate: input.completionDate,
+    amount: input.amount,
+    acceptanceDate: input.acceptanceDate,
+    warrantyStart: input.warrantyStart,
+    warrantyEnd: input.warrantyEnd,
+    warrantyStatement: input.warrantyStatement,
+    repairUrl: input.repairUrl,
+    warrantyUrl: input.warrantyUrl,
+    issuer: {
+      company: issuer.company || input.issuerCompany,
+      responsiblePerson: issuer.responsiblePerson || input.issuerResponsiblePerson,
+      address: issuer.address || input.issuerAddress
+    }
+  };
 }
 
 function normalizeWarranty_(input) {
@@ -62,18 +111,6 @@ function normalizeWarranty_(input) {
     repairUrl: String(input.repairUrl || '').trim(),
     warrantyUrl: String(input.warrantyUrl || '').trim(),
     updatedAt: new Date().toISOString()
-  };
-}
-
-function normalizeRepair_(input) {
-  if (!input.caseId) throw new Error('caseId is required');
-  return {
-    caseId: String(input.caseId || '').trim(),
-    contactName: String(input.contactName || '').trim(),
-    phone: String(input.phone || '').trim(),
-    issueType: String(input.issueType || '').trim(),
-    description: String(input.description || '').trim(),
-    createdAt: String(input.createdAt || new Date().toISOString()).trim()
   };
 }
 
@@ -144,25 +181,12 @@ function upsertWarranty_(warranty) {
   sheet.appendRow(row);
 }
 
-function appendRepair_(repair) {
-  const sheet = getOrCreateSheet_(SHEET_NAMES.REPAIRS, repairHeaders_());
-  sheet.appendRow(repairToRow_(repair));
-}
-
 function warrantyHeaders_() {
   return ['caseId', 'statusText', 'projectName', 'customerName', 'customerPhone', 'address', 'scope', 'completionDate', 'amount', 'acceptanceDate', 'warrantyStart', 'warrantyEnd', 'warrantyStatement', 'issuerCompany', 'issuerResponsiblePerson', 'issuerAddress', 'repairUrl', 'warrantyUrl', 'updatedAt'];
 }
 
-function repairHeaders_() {
-  return ['caseId', 'contactName', 'phone', 'issueType', 'description', 'createdAt'];
-}
-
 function warrantyToRow_(w) {
   return [w.caseId, w.statusText, w.projectName, w.customerName, w.customerPhone, w.address, w.scope, w.completionDate, w.amount, w.acceptanceDate, w.warrantyStart, w.warrantyEnd, w.warrantyStatement, w.issuerCompany, w.issuerResponsiblePerson, w.issuerAddress, w.repairUrl, w.warrantyUrl, w.updatedAt];
-}
-
-function repairToRow_(r) {
-  return [r.caseId, r.contactName, r.phone, r.issueType, r.description, r.createdAt];
 }
 
 function rowToWarranty_(headers, row) {
@@ -189,6 +213,17 @@ function rowToWarranty_(headers, row) {
     },
     repairUrl: obj.repairUrl,
     warrantyUrl: obj.warrantyUrl
+  };
+}
+
+function setupWarrantyDatabase() {
+  const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
+  return {
+    spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
+    spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
+    sheetName: sheet.getName(),
+    headerCount: warrantyHeaders_().length,
+    lastRow: sheet.getLastRow()
   };
 }
 

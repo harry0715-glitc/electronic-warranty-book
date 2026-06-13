@@ -177,10 +177,30 @@
     async function pushToApi(record) {
       if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return;
       try {
+        const form = new URLSearchParams();
+        form.set('action', 'createWarranty');
+        form.set('caseId', record.caseId || '');
+        form.set('projectName', record.projectName || '');
+        form.set('customerName', record.customerName || '');
+        form.set('customerPhone', record.customerPhone || '');
+        form.set('address', record.address || '');
+        form.set('scope', record.scope || '');
+        form.set('completionDate', record.completionDate || '');
+        form.set('amount', record.amount || '');
+        form.set('acceptanceDate', record.acceptanceDate || '');
+        form.set('warrantyStart', record.warrantyStart || '');
+        form.set('warrantyEnd', record.warrantyEnd || '');
+        form.set('warrantyStatement', record.warrantyStatement || '');
+        form.set('issuerCompany', record.issuer?.company || '');
+        form.set('issuerResponsiblePerson', record.issuer?.responsiblePerson || '');
+        form.set('issuerAddress', record.issuer?.address || '');
+        form.set('repairUrl', record.repairUrl || '');
+        form.set('warrantyUrl', record.warrantyUrl || '');
         await fetch(APP_CONFIG.apiBase, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'createWarranty', warranty: record })
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: form.toString()
         });
       } catch (error) {
         console.warn('pushToApi failed', error);
