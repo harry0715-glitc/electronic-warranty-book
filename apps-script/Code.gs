@@ -25,6 +25,11 @@ function doGet(e) {
     return output_(result, e.parameter.callback);
   }
 
+  if (action === 'searchWarrantyAddresses') {
+    const result = searchWarrantyAddresses_(e.parameter.q || e.parameter.address || '');
+    return output_(result, e.parameter.callback);
+  }
+
   if (action === 'getLineBindingByPhone') {
     const result = getLineBindingByPhone_(e.parameter.phone || '');
     return output_(result, e.parameter.callback);
@@ -244,6 +249,37 @@ function getWarrantyByAddress_(address) {
   return { success: false, message: 'Warranty not found' };
 }
 
+function searchWarrantyAddresses_(query) {
+  const target = normalizeAddress_(query);
+  if (!target) return { success: true, items: [] };
+  const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return { success: true, items: [] };
+  const headers = values[0];
+  const seen = {};
+  const items = [];
+
+  for (var i = 1; i < values.length; i++) {
+    var rowAddress = normalizeAddress_(values[i][5]);
+    if (!rowAddress || rowAddress.indexOf(target) < 0) continue;
+    var warranty = rowToWarranty_(headers, values[i]);
+    var key = String(warranty.caseId || '') + '|' + String(warranty.address || '');
+    if (seen[key]) continue;
+    seen[key] = true;
+    items.push({
+      caseId: warranty.caseId || '',
+      address: warranty.address || '',
+      customerName: warranty.customerName || '',
+      customerPhone: warranty.customerPhone || '',
+      projectName: warranty.projectName || '',
+      statusText: warranty.statusText || ''
+    });
+    if (items.length >= 8) break;
+  }
+
+  return { success: true, items: items };
+}
+
 function upsertWarranty_(warranty) {
   const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
   const values = sheet.getDataRange().getValues();
@@ -274,7 +310,7 @@ function rowToWarranty_(headers, row) {
     statusText: obj.statusText,
     projectName: obj.projectName,
     customerName: obj.customerName,
-    customerPhone: obj.customerPhone,
+    customerPhone: normalizePhone_(obj.customerPhone) || String(obj.customerPhone || '').trim(),
     address: obj.address,
     scope: obj.scope,
     completionDate: normalizeDateText_(obj.completionDate),
@@ -337,13 +373,19 @@ function getLineBindingByPhone_(phone) {
 }
 
 function findLineContactByPhone_(normalizedPhone) {
+  const target = normalizePhone_(normalizedPhone);
   const sheet = getOrCreateSheet_(SHEET_NAMES.LINE_CONTACTS, getLineContactHeaders_());
   const values = sheet.getDataRange().getValues();
   if (values.length <= 1) return null;
   const headers = values[0];
   for (var i = 1; i < values.length; i++) {
-    if (String(values[i][0]).trim() === String(normalizedPhone).trim()) {
-      return rowToObject_(headers, values[i]);
+    const stored = normalizePhone_(values[i][0]);
+    const raw = normalizePhone_(values[i][1]);
+    if (stored === target || raw === target) {
+      const contact = rowToObject_(headers, values[i]);
+      contact.normalizedPhone = stored || raw || target;
+      contact.rawPhone = String(values[i][1] || '').trim();
+      return contact;
     }
   }
   return null;
@@ -351,10 +393,12 @@ function findLineContactByPhone_(normalizedPhone) {
 
 function upsertLineContact_(contact) {
   const sheet = getOrCreateSheet_(SHEET_NAMES.LINE_CONTACTS, getLineContactHeaders_());
+  applySheetFormats_(sheet, SHEET_NAMES.LINE_CONTACTS);
   const values = sheet.getDataRange().getValues();
+  const normalizedPhone = normalizePhone_(contact.normalizedPhone || contact.rawPhone || '');
   const row = [
-    contact.normalizedPhone || '',
-    contact.rawPhone || '',
+    normalizedPhone || '',
+    contact.rawPhone || normalizedPhone || '',
     contact.userId || '',
     contact.displayName || '',
     contact.pictureUrl || '',
@@ -365,14 +409,15 @@ function upsertLineContact_(contact) {
   ];
 
   for (var i = 1; i < values.length; i++) {
-    const samePhone = String(values[i][0]).trim() === String(contact.normalizedPhone || '').trim();
+    const samePhone = normalizePhone_(values[i][0]) === normalizedPhone || normalizePhone_(values[i][1]) === normalizedPhone;
     const sameUser = contact.userId && String(values[i][2]).trim() === String(contact.userId).trim();
     if (samePhone || sameUser) {
-      sheet.getRange(i + 1, 1, 1, row.length).setValues([row]);
+      sheet.getRange(i + 1, 1, 1, row.length).setNumberFormat('@STRING@').setValues([row]);
       return;
     }
   }
   sheet.appendRow(row);
+  sheet.getRange(sheet.getLastRow(), 1, 1, row.length).setNumberFormat('@STRING@');
 }
 
 function rowToObject_(headers, row) {
@@ -728,6 +773,8 @@ function getLastLineDebug_() {
 function setupWarrantyDatabase() {
   const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
   const lineSheet = getOrCreateSheet_(SHEET_NAMES.LINE_CONTACTS, getLineContactHeaders_());
+  applySheetFormats_(sheet, SHEET_NAMES.WARRANTIES);
+  applySheetFormats_(lineSheet, SHEET_NAMES.LINE_CONTACTS);
   return {
     spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
     spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
@@ -757,7 +804,18 @@ function getOrCreateSheet_(name, headers) {
     sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
   }
   if (sheet.getLastRow() === 0) sheet.appendRow(headers);
+  applySheetFormats_(sheet, name);
   return sheet;
+}
+
+function applySheetFormats_(sheet, name) {
+  if (!sheet) return;
+  if (name === SHEET_NAMES.WARRANTIES) {
+    sheet.getRange('E:E').setNumberFormat('@STRING@');
+  }
+  if (name === SHEET_NAMES.LINE_CONTACTS) {
+    sheet.getRange('A:B').setNumberFormat('@STRING@');
+  }
 }
 
 function setLineConfigForSetup(token, secret, webhookKey, liffId, adminSendPin) {

@@ -47,16 +47,18 @@
   <div class="wrap">
     <section class="hero">
       <h1>電子保固書建立</h1>
-      <p>此頁用來建立新的電子保固書案件。建立完成後，系統會自動產生 <strong>完整保固書網址</strong>、<strong>LIFF 專屬連結</strong> 與 <strong>可直接轉傳給客戶的分享文案</strong>。</p>
+      <p>此頁用來建立新的電子保固書案件。建立完成後，系統會保留 <strong>完整保固書網址</strong>，並可直接確認 <strong>LINE 綁定狀態</strong> 與透過 <strong>官方帳號發送資訊卡</strong>。</p>
       <div class="steps">
         <div class="step"><strong>1. 填寫案件資料</strong><span>案件編號由系統自動產生，不需手動輸入。</span></div>
-        <div class="step"><strong>2. 送出前再次確認</strong><span>本頁送出後不提供直接編輯；如需修改請洽管理者。</span></div>
-        <div class="step"><strong>3. 複製專屬連結</strong><span>建立成功後可直接複製 LIFF 連結與分享文案傳給客戶。</span></div>
+        <div class="step"><strong>2. 送出前再次確認</strong><span>本頁送出後不提供直接修改；如需修改請洽管理者。</span></div>
+        <div class="step"><strong>3. 查綁定後由 OA 發送</strong><span>建立成功後可直接確認 LINE 綁定狀態並發送資訊卡。</span></div>
       </div>
+
       <div class="quick-tools">
         <div class="field-full">
-          <label for="lookupAddress">查詢既有保固書（輸入案件地址）</label>
-          <input id="lookupAddress" placeholder="例如：高雄市楠梓區右昌街 358 號 6 樓之 7" />
+          <label for="lookupAddress">查詢既有保固書（輸入部分案件地址）</label>
+          <input id="lookupAddress" list="addressSuggestions" placeholder="例如：右昌街 358 號" autocomplete="off" />
+          <datalist id="addressSuggestions"></datalist>
         </div>
         <button class="secondary" type="button" id="lookupBtn">查詢保固書</button>
       </div>
@@ -69,7 +71,7 @@
           <ul class="notice-list">
             <li>請先確認客戶名稱、案件名稱、地址與保固日期是否正確。</li>
             <li>本頁送出後不提供直接修改；如需修改請洽管理者。</li>
-            <li>建立成功後會自動產生該案件專屬 LIFF 連結與分享文案。</li>
+            <li>建立成功後可直接確認 LINE 綁定狀態並由官方帳號發送資訊卡。</li>
           </ul>
         </div>
         <div class="fields">
@@ -104,18 +106,12 @@
         <div class="actions" style="margin-top:8px;">
           <button class="primary" type="button" id="openWarrantyPageBtn">開啟完整保固書</button>
         </div>
-        <div class="small">LINE LIFF 專屬開啟連結</div>
-        <div class="status"><a id="liffLink" href="#" target="_blank" style="color:#ffe2a7;word-break:break-all;">尚未建立</a></div>
-        <div class="small">分享文案（可直接複製後貼到 LINE）</div>
-        <textarea id="shareMessage" readonly style="min-height:150px;"></textarea>
         <div class="small">LINE 綁定狀態（客戶需先加入 OA 並傳送手機號碼）</div>
         <div class="status" id="lineBindingStatus">尚未查詢</div>
         <div class="small">官方帳號發送碼</div>
         <input id="lineSendPin" placeholder="輸入管理發送碼後送出資訊卡" />
         <div class="actions">
           <button class="secondary" type="button" id="copyWarrantyLinkBtn">複製保固書連結</button>
-          <button class="secondary" type="button" id="copyLiffLinkBtn">複製 LIFF 連結</button>
-          <button class="secondary" type="button" id="copyShareMessageBtn">複製分享文案</button>
           <button class="secondary" type="button" id="copyBindGuideBtn">複製綁定說明</button>
           <button class="secondary" type="button" id="refreshBindingBtn">更新綁定狀態</button>
           <button class="primary" type="button" id="sendWarrantyCardBtn">官方帳號送出資訊卡</button>
@@ -169,9 +165,8 @@
       const phone = normalizePhone(record.customerPhone || '');
       const oaUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || '';
       return [
-        '請先加入楓根官方帳號，並傳送以下手機號碼完成綁定：',
-        phone || '（未提供手機號碼）',
-        oaUrl ? `官方帳號：${oaUrl}` : ''
+        oaUrl ? `加入官方 LINE：${oaUrl}` : '請先加入官方 LINE',
+        `加入後請傳送手機號碼：${phone || '（未提供手機號碼）'}`
       ].filter(Boolean).join('\n');
     }
 
@@ -185,6 +180,27 @@
       const cases = Object.values(getCases());
       return cases.find(item => normalizeAddress(item && item.address) === normalized)
         || cases.find(item => normalizeAddress(item && item.address).includes(normalized) || normalized.includes(normalizeAddress(item && item.address)));
+    }
+
+    function searchLocalAddressSuggestions(query) {
+      const normalized = normalizeAddress(query);
+      if (!normalized) return [];
+      const seen = new Set();
+      return Object.values(getCases())
+        .filter(item => normalizeAddress(item && item.address).includes(normalized))
+        .filter(item => {
+          const key = `${item.caseId || ''}|${item.address || ''}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, 8)
+        .map(item => ({
+          caseId: item.caseId || '',
+          address: item.address || '',
+          customerName: item.customerName || '',
+          statusText: item.statusText || ''
+        }));
     }
 
     function loadJsonp(url) {
@@ -214,6 +230,13 @@
       const result = await loadJsonp(url);
       if (!result || !result.success || !result.warranty) return null;
       return result.warranty;
+    }
+
+    async function searchRemoteAddressSuggestions(query) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return [];
+      const url = `${APP_CONFIG.apiBase}?action=searchWarrantyAddresses&q=${encodeURIComponent(query)}`;
+      const result = await loadJsonp(url);
+      return Array.isArray(result?.items) ? result.items : [];
     }
 
     function normalizeExistingRecord(record) {
@@ -477,6 +500,36 @@
       return binding;
     }
 
+    function renderAddressSuggestions(items) {
+      const datalist = document.getElementById('addressSuggestions');
+      datalist.innerHTML = '';
+      (items || []).forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.address || '';
+        option.label = [item.customerName || '', item.caseId || '', item.statusText || ''].filter(Boolean).join('｜');
+        datalist.appendChild(option);
+      });
+    }
+
+    let suggestionTimer = null;
+    async function updateAddressSuggestions(query) {
+      const raw = String(query || '').trim();
+      if (raw.length < 2) {
+        renderAddressSuggestions([]);
+        return;
+      }
+      const local = searchLocalAddressSuggestions(raw);
+      const remote = await searchRemoteAddressSuggestions(raw);
+      const seen = new Set();
+      const merged = [...local, ...remote].filter(item => {
+        const key = `${item.caseId || ''}|${item.address || ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).slice(0, 8);
+      renderAddressSuggestions(merged);
+    }
+
     async function showSaved(record, modeText) {
       document.getElementById('resultPanel').classList.remove('hidden');
       document.getElementById('statusBox').textContent = `${modeText}｜案件編號 ${record.caseId}｜狀態 ${record.statusText}`;
@@ -488,23 +541,9 @@
         window.open(record.warrantyUrl + '&from=admin', '_blank', 'noopener');
       };
 
-      const liffUrl = getLiffLaunchUrl(record);
-      const liffLink = document.getElementById('liffLink');
-      liffLink.href = liffUrl || record.warrantyUrl;
-      liffLink.textContent = liffUrl || '尚未設定 LIFF ID';
-
-      document.getElementById('shareMessage').value = buildShareMessage(record);
       document.getElementById('copyWarrantyLinkBtn').onclick = async () => {
         await copyText(record.warrantyUrl);
         document.getElementById('statusBox').textContent = `已複製保固書連結｜案件編號 ${record.caseId}`;
-      };
-      document.getElementById('copyLiffLinkBtn').onclick = async () => {
-        await copyText(liffUrl || record.warrantyUrl);
-        document.getElementById('statusBox').textContent = `已複製 LIFF 連結｜案件編號 ${record.caseId}`;
-      };
-      document.getElementById('copyShareMessageBtn').onclick = async () => {
-        await copyText(buildShareMessage(record));
-        document.getElementById('statusBox').textContent = `已複製分享文案｜案件編號 ${record.caseId}`;
       };
       document.getElementById('copyBindGuideBtn').onclick = async () => {
         await copyText(buildBindingGuide(record));
@@ -573,6 +612,13 @@
     const form = document.getElementById('warrantyForm');
     const lookupInput = document.getElementById('lookupAddress');
     const amountInput = form.elements.amount;
+
+    lookupInput.addEventListener('input', () => {
+      clearTimeout(suggestionTimer);
+      suggestionTimer = setTimeout(() => {
+        updateAddressSuggestions(lookupInput.value).catch(() => {});
+      }, 180);
+    });
 
     amountInput.addEventListener('blur', () => {
       const digitsOnly = normalizeAmountDigits(amountInput.value);
