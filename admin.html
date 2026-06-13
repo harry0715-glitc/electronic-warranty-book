@@ -216,6 +216,53 @@
       return result.warranty;
     }
 
+    function normalizeExistingRecord(record) {
+      if (!record) return null;
+      const baseUrl = getBaseUrl();
+      const normalized = {
+        caseId: String(record.caseId || '').trim(),
+        projectName: String(record.projectName || '').trim(),
+        customerName: String(record.customerName || '').trim(),
+        customerPhone: String(record.customerPhone || '').trim(),
+        address: String(record.address || '').trim(),
+        scope: String(record.scope || '').trim(),
+        completionDate: toIsoDate(record.completionDate || ''),
+        amount: String(record.amount || '').trim(),
+        acceptanceDate: toIsoDate(record.acceptanceDate || ''),
+        warrantyStart: toIsoDate(record.warrantyStart || ''),
+        warrantyEnd: toIsoDate(record.warrantyEnd || ''),
+        warrantyStatement: String(record.warrantyStatement || '').trim(),
+        issuer: {
+          company: String(record.issuer?.company || record.issuerCompany || '').trim(),
+          responsiblePerson: String(record.issuer?.responsiblePerson || record.issuerResponsiblePerson || '').trim(),
+          address: String(record.issuer?.address || record.issuerAddress || '').trim()
+        },
+        repairUrl: String(record.repairUrl || '').trim(),
+        warrantyUrl: String(record.warrantyUrl || '').trim()
+      };
+      normalized.statusText = String(record.statusText || deriveStatusText(normalized.warrantyStart, normalized.warrantyEnd)).trim() || '日期未設定';
+      if (!normalized.repairUrl) normalized.repairUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || `${baseUrl}/repair.html?id=${encodeURIComponent(normalized.caseId)}`;
+      if (!normalized.warrantyUrl) normalized.warrantyUrl = `${baseUrl}/index.html?id=${encodeURIComponent(normalized.caseId)}`;
+      return normalized;
+    }
+
+    function populateForm(record) {
+      form.projectName.value = record.projectName || '';
+      form.customerName.value = record.customerName || '';
+      form.customerPhone.value = record.customerPhone || '';
+      form.address.value = record.address || '';
+      form.scope.value = record.scope || '';
+      form.completionDate.value = toIsoDate(record.completionDate || '');
+      form.amount.value = record.amount || '';
+      form.acceptanceDate.value = toIsoDate(record.acceptanceDate || '');
+      form.warrantyStart.value = toIsoDate(record.warrantyStart || '');
+      form.warrantyEnd.value = toIsoDate(record.warrantyEnd || '');
+      form.warrantyStatement.value = record.warrantyStatement || '';
+      form.issuerCompany.value = record.issuer?.company || '';
+      form.issuerResponsiblePerson.value = record.issuer?.responsiblePerson || '';
+      form.issuerAddress.value = record.issuer?.address || '';
+    }
+
     async function openCaseByAddress(address) {
       const raw = String(address || '').trim();
       if (!raw) {
@@ -223,13 +270,16 @@
         return;
       }
       const local = findLocalCaseByAddress(raw);
-      const matched = local || await findRemoteCaseByAddress(raw);
+      const matched = normalizeExistingRecord(local || await findRemoteCaseByAddress(raw));
       if (!matched || !matched.caseId) {
         alert('查無符合的案件地址');
         return;
       }
-      const baseUrl = getBaseUrl();
-      window.open(`${baseUrl}/index.html?id=${encodeURIComponent(matched.caseId)}`, '_blank', 'noopener');
+      saveRecord(matched);
+      populateForm(matched);
+      await showSaved(matched, '已載入既有案件');
+      document.getElementById('statusBox').textContent = `已載入既有案件｜案件編號 ${matched.caseId}｜狀態 ${matched.statusText}`;
+      document.getElementById('resultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function confirmCreate(record, mode) {
