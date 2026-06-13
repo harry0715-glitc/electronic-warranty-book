@@ -10,6 +10,11 @@ function doGet(e) {
     return output_(result, e.parameter.callback);
   }
 
+  if (action === 'findWarrantyByAddress') {
+    const result = getWarrantyByAddress_(e.parameter.address || '');
+    return output_(result, e.parameter.callback);
+  }
+
   if (action === 'createWarranty') {
     try {
       const warranty = normalizeWarranty_(extractWarrantyInput_(e.parameter || {}));
@@ -118,7 +123,7 @@ function nextCaseId_() {
   const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
   const values = sheet.getDataRange().getValues();
   const year = new Date().getFullYear();
-  const prefix = 'WG-' + year + '-';
+  const prefix = 'FG-' + year + '-';
   var maxNumber = 0;
 
   for (var i = 1; i < values.length; i++) {
@@ -163,6 +168,36 @@ function getWarrantyById_(caseId) {
     if (String(values[i][0]).trim() === String(caseId).trim()) {
       return { success: true, warranty: rowToWarranty_(headers, values[i]) };
     }
+  }
+  return { success: false, message: 'Warranty not found' };
+}
+
+function normalizeAddress_(text) {
+  return String(text || '').trim().replace(/\s+/g, '').toLowerCase();
+}
+
+function getWarrantyByAddress_(address) {
+  if (!address) return { success: false, message: 'address is required' };
+  const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return { success: false, message: 'No data found' };
+  const headers = values[0];
+  const target = normalizeAddress_(address);
+  var partialMatch = null;
+
+  for (var i = 1; i < values.length; i++) {
+    var rowAddress = normalizeAddress_(values[i][5]);
+    if (!rowAddress) continue;
+    if (rowAddress === target) {
+      return { success: true, warranty: rowToWarranty_(headers, values[i]) };
+    }
+    if (!partialMatch && (rowAddress.indexOf(target) >= 0 || target.indexOf(rowAddress) >= 0)) {
+      partialMatch = values[i];
+    }
+  }
+
+  if (partialMatch) {
+    return { success: true, warranty: rowToWarranty_(headers, partialMatch) };
   }
   return { success: false, message: 'Warranty not found' };
 }

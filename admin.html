@@ -55,8 +55,8 @@
       </div>
       <div class="quick-tools">
         <div class="field-full">
-          <label for="lookupCaseId">查詢既有保固書（輸入案件編號）</label>
-          <input id="lookupCaseId" placeholder="例如：WG-2026-002" />
+          <label for="lookupAddress">查詢既有保固書（輸入案件地址）</label>
+          <input id="lookupAddress" placeholder="例如：高雄市楠梓區右昌街 358 號 6 樓之 7" />
         </div>
         <button class="secondary" type="button" id="lookupBtn">查詢保固書</button>
       </div>
@@ -147,18 +147,61 @@
       ].join('\n');
     }
 
-    function normalizeCaseId(value) {
-      return String(value || '').trim().toUpperCase();
+    function normalizeAddress(value) {
+      return String(value || '').trim().replace(/\s+/g, '').toLowerCase();
     }
 
-    function openCaseById(caseId) {
-      const normalized = normalizeCaseId(caseId);
-      if (!normalized) {
-        alert('請先輸入案件編號，例如 WG-2026-002');
+    function findLocalCaseByAddress(address) {
+      const normalized = normalizeAddress(address);
+      if (!normalized) return null;
+      const cases = Object.values(getCases());
+      return cases.find(item => normalizeAddress(item && item.address) === normalized)
+        || cases.find(item => normalizeAddress(item && item.address).includes(normalized) || normalized.includes(normalizeAddress(item && item.address)));
+    }
+
+    function loadJsonp(url) {
+      return new Promise((resolve, reject) => {
+        const callbackName = '__jsonp_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        const script = document.createElement('script');
+        const cleanup = () => {
+          if (script.parentNode) script.parentNode.removeChild(script);
+          try { delete window[callbackName]; } catch (_) { window[callbackName] = undefined; }
+        };
+        window[callbackName] = (payload) => {
+          cleanup();
+          resolve(payload);
+        };
+        script.onerror = () => {
+          cleanup();
+          reject(new Error('地址查詢失敗'));
+        };
+        script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName;
+        document.body.appendChild(script);
+      });
+    }
+
+    async function findRemoteCaseByAddress(address) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return null;
+      const url = `${APP_CONFIG.apiBase}?action=findWarrantyByAddress&address=${encodeURIComponent(address)}`;
+      const result = await loadJsonp(url);
+      if (!result || !result.success || !result.warranty) return null;
+      return result.warranty;
+    }
+
+    async function openCaseByAddress(address) {
+      const raw = String(address || '').trim();
+      if (!raw) {
+        alert('請先輸入案件地址');
+        return;
+      }
+      const local = findLocalCaseByAddress(raw);
+      const matched = local || await findRemoteCaseByAddress(raw);
+      if (!matched || !matched.caseId) {
+        alert('查無符合的案件地址');
         return;
       }
       const baseUrl = getBaseUrl();
-      window.open(`${baseUrl}/index.html?id=${encodeURIComponent(normalized)}`, '_blank', 'noopener');
+      window.open(`${baseUrl}/index.html?id=${encodeURIComponent(matched.caseId)}`, '_blank', 'noopener');
     }
 
     function confirmCreate(record, mode) {
@@ -200,7 +243,7 @@
 
     function nextCaseId() {
       const year = new Date().getFullYear();
-      const prefix = `WG-${year}-`;
+      const prefix = `FG-${year}-`;
       const numbers = Object.keys(getCases())
         .filter(key => key.startsWith(prefix))
         .map(key => Number(key.slice(prefix.length)))
@@ -322,16 +365,16 @@
     }
 
     const form = document.getElementById('warrantyForm');
-    const lookupInput = document.getElementById('lookupCaseId');
+    const lookupInput = document.getElementById('lookupAddress');
 
-    document.getElementById('lookupBtn').addEventListener('click', () => {
-      openCaseById(lookupInput.value);
+    document.getElementById('lookupBtn').addEventListener('click', async () => {
+      await openCaseByAddress(lookupInput.value);
     });
 
-    lookupInput.addEventListener('keydown', (event) => {
+    lookupInput.addEventListener('keydown', async (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        openCaseById(lookupInput.value);
+        await openCaseByAddress(lookupInput.value);
       }
     });
 
