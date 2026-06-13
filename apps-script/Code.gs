@@ -39,6 +39,16 @@ function doGet(e) {
     return output_(result, e.parameter.callback);
   }
 
+  if (action === 'listWarrantyRecords') {
+    const result = listWarrantyRecords_();
+    return output_(result, e.parameter.callback);
+  }
+
+  if (action === 'deleteWarranty') {
+    const result = deleteWarrantyRecord_(e.parameter.caseId || '', e.parameter.pin || '');
+    return output_(result, e.parameter.callback);
+  }
+
   if (action === 'getLineBindingByPhone') {
     const result = getLineBindingByPhone_(e.parameter.phone || '');
     return output_(result, e.parameter.callback);
@@ -319,6 +329,113 @@ function searchWarrantyRecords_(query) {
   }
 
   return { success: true, items: items };
+}
+
+function getWarrantyStatusKey_(warranty) {
+  const startDate = parseIsoDate_(warranty && warranty.warrantyStart);
+  const endDate = parseIsoDate_(warranty && warranty.warrantyEnd);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (!startDate || !endDate) return 'pending';
+  if (today < startDate) return 'pending';
+  if (today > endDate) return 'expired';
+  return 'active';
+}
+
+function listWarrantyRecords_() {
+  const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return { success: true, items: [] };
+  const headers = values[0];
+  const items = [];
+  for (var i = 1; i < values.length; i++) {
+    var warranty = rowToWarranty_(headers, values[i]);
+    var binding = getLineBindingByPhone_(warranty.customerPhone || '');
+    items.push({
+      caseId: warranty.caseId || '',
+      projectName: warranty.projectName || '',
+      customerName: warranty.customerName || '',
+      customerPhone: warranty.customerPhone || '',
+      address: warranty.address || '',
+      warrantyStart: warranty.warrantyStart || '',
+      warrantyEnd: warranty.warrantyEnd || '',
+      statusText: warranty.statusText || '',
+      statusKey: getWarrantyStatusKey_(warranty),
+      warrantyUrl: warranty.warrantyUrl || '',
+      bindingBound: !!(binding && binding.success && binding.bound),
+      bindingDisplayName: binding && binding.bound ? (binding.displayName || '') : '',
+      bindingUpdatedAt: binding && binding.bound ? (binding.updatedAt || binding.lastBoundAt || '') : ''
+    });
+  }
+  items.sort(function(a, b) {
+    const order = { active: 0, pending: 1, expired: 2 };
+    const statusDiff = (order[a.statusKey] || 9) - (order[b.statusKey] || 9);
+    if (statusDiff !== 0) return statusDiff;
+    const aDate = parseIsoDate_(a.warrantyEnd);
+    const bDate = parseIsoDate_(b.warrantyEnd);
+    const aTime = aDate ? aDate.getTime() : Number.MAX_SAFE_INTEGER;
+    const bTime = bDate ? bDate.getTime() : Number.MAX_SAFE_INTEGER;
+    if (aTime !== bTime) return aTime - bTime;
+    return String(a.caseId || '').localeCompare(String(b.caseId || ''));
+  });
+  return { success: true, items: items };
+}
+
+function deleteWarrantyRecord_(caseId, pin) {
+  const targetCaseId = String(caseId || '').trim();
+  if (!targetCaseId) return { success: false, message: 'caseId is required' };
+  if (!verifyAdminSendPin_(pin)) return { success: false, message: '發送碼錯誤' };
+  const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return { success: false, message: 'No data found' };
+  const headers = values[0];
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0] || '').trim() !== targetCaseId) continue;
+    const warranty = rowToWarranty_(headers, values[i]);
+    sheet.deleteRow(i + 1);
+    const deletedBinding = maybeDeleteOrphanLineContact_(warranty.customerPhone || '');
+    return {
+      success: true,
+      deletedCaseId: targetCaseId,
+      deletedBinding: deletedBinding,
+      deletedWarranty: {
+        caseId: warranty.caseId || '',
+        projectName: warranty.projectName || '',
+        customerName: warranty.customerName || '',
+        customerPhone: warranty.customerPhone || ''
+      }
+    };
+  }
+  return { success: false, message: 'Warranty not found' };
+}
+
+function maybeDeleteOrphanLineContact_(phone) {
+  const normalizedPhone = normalizePhone_(phone);
+  if (!normalizedPhone) return false;
+  if (hasWarrantyWithPhone_(normalizedPhone)) return false;
+  const sheet = getOrCreateSheet_(SHEET_NAMES.LINE_CONTACTS, getLineContactHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return false;
+  for (var i = values.length - 1; i >= 1; i--) {
+    const stored = normalizePhone_(values[i][0]);
+    const raw = normalizePhone_(values[i][1]);
+    if (stored === normalizedPhone || raw === normalizedPhone) {
+      sheet.deleteRow(i + 1);
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasWarrantyWithPhone_(phone) {
+  const normalizedPhone = normalizePhone_(phone);
+  if (!normalizedPhone) return false;
+  const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
+  const values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (normalizePhone_(values[i][4]) === normalizedPhone) return true;
+  }
+  return false;
 }
 
 function normalizeKeyword_(text) {
