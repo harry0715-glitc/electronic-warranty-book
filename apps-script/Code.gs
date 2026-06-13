@@ -67,6 +67,10 @@ function doPost(e) {
       return handleLineWebhook_(payload, e);
     }
 
+    if (action === 'setupLineConfigOnce') {
+      return output_(setupLineConfigOnce_(payload));
+    }
+
     if (action === 'createWarranty') {
       const warranty = normalizeWarranty_(extractWarrantyInput_(payload.warranty || payload));
       upsertWarranty_(warranty);
@@ -691,6 +695,15 @@ function setupWarrantyDatabase() {
     lineContactHeaderCount: getLineContactHeaders_().length,
     lastRow: sheet.getLastRow()
   };
+}
+
+function setupLineConfigOnce_(payload) {
+  const status = getLineConfigStatus_();
+  if (status.hasAccessToken || status.hasChannelSecret) {
+    return { success: false, message: 'LINE config already initialized', status: status };
+  }
+  setLineConfigForSetup(payload.token, payload.secret, payload.webhookKey, payload.liffId, payload.adminSendPin);
+  return { success: true, status: getLineConfigStatus_() };
 }
 
 function getOrCreateSheet_(name, headers) {
