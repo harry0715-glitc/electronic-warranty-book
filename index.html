@@ -208,6 +208,14 @@
       return record.customerName || record.projectName || '電子保固書';
     }
 
+    function toAbsoluteUrl(url) {
+      try {
+        return new URL(url || location.href, location.href).toString();
+      } catch (error) {
+        return location.href;
+      }
+    }
+
     function buildFlex(record) {
       return {
         type: 'flex',
@@ -230,8 +238,8 @@
           },
           footer: {
             type: 'box', layout: 'vertical', spacing: 'sm', contents: [
-              { type: 'button', style: 'primary', color: '#D4B071', action: { type: 'uri', label: '查看保固書', uri: record.warrantyUrl || location.href } },
-              { type: 'button', style: 'secondary', action: { type: 'uri', label: '我要報修', uri: record.repairUrl || ('repair.html?id=' + encodeURIComponent(record.caseId || '')) } }
+              { type: 'button', style: 'primary', color: '#D4B071', action: { type: 'uri', label: '查看保固書', uri: toAbsoluteUrl(record.warrantyUrl || location.href) } },
+              { type: 'button', style: 'secondary', action: { type: 'uri', label: '我要報修', uri: toAbsoluteUrl(record.repairUrl || ('repair.html?id=' + encodeURIComponent(record.caseId || ''))) } }
             ]
           }
         }
@@ -325,8 +333,8 @@
         acceptanceDate: formatIsoDateToRoc(data.acceptanceDate),
         issuer: data.issuer || {}
       };
-      normalized.warrantyUrl = normalized.warrantyUrl || location.href;
-      normalized.repairUrl = normalized.repairUrl || (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || ('repair.html?id=' + encodeURIComponent(normalized.caseId || ''));
+      normalized.warrantyUrl = toAbsoluteUrl(normalized.warrantyUrl || location.href);
+      normalized.repairUrl = toAbsoluteUrl(normalized.repairUrl || (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || ('repair.html?id=' + encodeURIComponent(normalized.caseId || '')));
       currentRecord = normalized;
 
       document.getElementById('subNote').textContent = sourceLabel;
