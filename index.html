@@ -91,13 +91,11 @@
         <div class="list" id="summaryList"></div>
       </article>
       <article class="card">
-        <h2>分享與服務</h2>
-        <p>保固書確認無誤後，可直接報修，或在 LINE 內將同一張 Flex 卡片分享給好友。</p>
+        <h2>服務資訊</h2>
+        <p>如需售後協助，可直接透過下方按鈕聯繫報修。</p>
         <div class="action-row">
           <a id="repairLink" class="btn btn-primary" href="#">我要報修</a>
-          <button id="lineShareBtn" class="btn btn-secondary" type="button">分享給 LINE 好友</button>
         </div>
-        <div class="hint" id="shareHint">分享按鈕會依目前 LINE / LIFF 狀態自動切換；若無法分享，這裡會顯示原因。</div>
       </article>
     </section>
 
@@ -116,7 +114,6 @@
     <div class="footer-note hidden" id="footerNote"></div>
   </div>
 
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="api-config.js?v=20260613-2"></script>
   <script>
     const FIELDS = [
@@ -202,153 +199,11 @@
       return data.warrantyStart && data.warrantyEnd ? (formatIsoDateToRoc(data.warrantyStart) + ' 至 ' + formatIsoDateToRoc(data.warrantyEnd)) : '未設定';
     }
 
-    let lineShareReady = false;
-
-    function formatWarrantyPeriod(record) {
-      return `${formatIsoDateToRoc(record.warrantyStart)} 至 ${formatIsoDateToRoc(record.warrantyEnd)}`;
-    }
-
-    function getShareTitle(record) {
-      return record.customerName || record.projectName || '電子保固書';
-    }
-
     function toAbsoluteUrl(url) {
       try {
         return new URL(url || location.href, location.href).toString();
       } catch (error) {
         return location.href;
-      }
-    }
-
-    function buildFlex(record) {
-      return {
-        type: 'flex',
-        altText: `${getShareTitle(record)}｜電子保固書`,
-        contents: {
-          type: 'bubble',
-          size: 'mega',
-          body: {
-            type: 'box',
-            layout: 'vertical',
-            spacing: 'md',
-            contents: [
-              { type: 'text', text: '電子保固書入口卡', weight: 'bold', size: 'xl', color: '#D4B071' },
-              { type: 'text', text: `客戶名稱｜${record.customerName || '未提供'}`, wrap: true, size: 'md', color: '#F6ECD8', weight: 'bold' },
-              { type: 'text', text: `案件編號｜${record.caseId || '未提供'}`, wrap: true, size: 'sm', color: '#D2C7B6' },
-              { type: 'text', text: `保固期間｜${formatWarrantyPeriod(record)}`, wrap: true, size: 'sm', color: '#D2C7B6' }
-            ],
-            backgroundColor: '#1A1614',
-            paddingAll: '20px'
-          },
-          footer: {
-            type: 'box',
-            layout: 'vertical',
-            spacing: 'sm',
-            backgroundColor: '#151313',
-            contents: [
-              {
-                type: 'box',
-                layout: 'vertical',
-                paddingAll: '10px',
-                cornerRadius: '12px',
-                backgroundColor: '#D4B071',
-                action: { type: 'uri', label: '查看保固書', uri: toAbsoluteUrl(record.warrantyUrl || location.href) },
-                contents: [
-                  { type: 'text', text: '查看保固書', align: 'center', size: 'md', weight: 'bold', color: '#161210' }
-                ]
-              },
-              {
-                type: 'box',
-                layout: 'vertical',
-                paddingAll: '10px',
-                cornerRadius: '12px',
-                backgroundColor: '#D4B071',
-                action: { type: 'uri', label: '我要報修', uri: toAbsoluteUrl(record.repairUrl || ('repair.html?id=' + encodeURIComponent(record.caseId || ''))) },
-                contents: [
-                  { type: 'text', text: '我要報修', align: 'center', size: 'md', weight: 'bold', color: '#161210' }
-                ]
-              }
-            ]
-          }
-        }
-      };
-    }
-
-    function setShareState({ disabled, label, hint }) {
-      const btn = document.getElementById('lineShareBtn');
-      const hintEl = document.getElementById('shareHint');
-      btn.disabled = Boolean(disabled);
-      if (label) btn.textContent = label;
-      if (typeof hint === 'string') hintEl.textContent = hint;
-    }
-
-    function summarizeShareError(error) {
-      const rawMessage = error?.message || error?.reason || '';
-      const code = error?.code || error?.name || 'UNKNOWN';
-      const shortMessage = String(rawMessage).replace(/^.*?:\s*/, '').replace(/\s+/g, ' ').trim();
-      return shortMessage ? `${code}: ${shortMessage}` : code;
-    }
-
-    function normalizeShareMessages(payload) {
-      if (Array.isArray(payload)) return payload;
-      if (payload && Array.isArray(payload.messages)) return payload.messages;
-      if (payload && typeof payload === 'object') return [payload];
-      throw new Error('分享訊息格式不正確');
-    }
-
-    async function loadShareMessages(record) {
-      return [buildFlex(record)];
-    }
-
-    async function initLineShare() {
-      const liffId = String(window.APP_CONFIG?.liffId || '').trim();
-      if (!window.liff) {
-        setShareState({ disabled: true, label: 'LINE SDK 載入失敗', hint: 'LINE SDK 載入失敗，請稍後重試。' });
-        return;
-      }
-      if (!liffId) {
-        setShareState({ disabled: true, label: '尚未設定 LIFF', hint: '尚未設定 LIFF ID，暫時無法分享。' });
-        return;
-      }
-      try {
-        await liff.init({ liffId });
-        if (!liff.isInClient()) {
-          setShareState({ disabled: true, label: '請在 LINE 內開啟', hint: '請在 LINE App 內開啟此頁，才能直接分享 Flex 卡片。' });
-          return;
-        }
-        if (typeof liff.isApiAvailable === 'function' && !liff.isApiAvailable('shareTargetPicker')) {
-          setShareState({ disabled: true, label: '此 LINE 環境不支援分享', hint: '目前 LINE 環境不支援分享選擇器，請更新 LINE App 後再試。' });
-          return;
-        }
-        lineShareReady = true;
-        setShareState({ disabled: false, label: '分享給 LINE 好友', hint: '可直接分享到 LINE 好友或群組。' });
-      } catch (error) {
-        lineShareReady = false;
-        setShareState({ disabled: true, label: 'LIFF 初始化失敗', hint: 'LINE 分享初始化失敗：' + summarizeShareError(error) });
-      }
-    }
-
-    async function shareViaLine(record) {
-      if (!lineShareReady) {
-        await initLineShare();
-        if (!lineShareReady) return;
-      }
-      const hint = document.getElementById('shareHint');
-      try {
-        setShareState({ disabled: true, label: '開啟分享中…', hint: '正在開啟 LINE 好友選取視窗…' });
-        if (!liff.isLoggedIn()) {
-          liff.login({ redirectUri: location.href });
-          return;
-        }
-        const messages = await loadShareMessages(record);
-        const result = await liff.shareTargetPicker(messages, { isMultiple: true });
-        if (result && result.status === 'success') {
-          setShareState({ disabled: false, label: '再次分享給 LINE 好友', hint: '已送出分享。' });
-        } else {
-          setShareState({ disabled: false, label: '分享給 LINE 好友', hint: '你已取消分享。' });
-        }
-      } catch (error) {
-        setShareState({ disabled: false, label: '分享失敗，點此重試', hint: 'LINE 分享失敗：' + summarizeShareError(error) });
       }
     }
 
@@ -435,12 +290,6 @@
       }
     }
 
-    document.getElementById('lineShareBtn').addEventListener('click', () => {
-      if (!currentRecord) return;
-      shareViaLine(currentRecord);
-    });
-
-    initLineShare();
     main();
   </script>
 </body>
