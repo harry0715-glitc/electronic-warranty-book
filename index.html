@@ -123,7 +123,7 @@
   </div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="api-config.js"></script>
+  <script src="api-config.js?v=20260613-2"></script>
   <script>
     const FIELDS = [
       { label: '案件名稱', key: 'projectName' },
@@ -229,23 +229,35 @@
     async function shareViaLine(record) {
       const btn = document.getElementById('lineShareBtn');
       const hint = document.getElementById('shareHint');
-      if (!window.liff || !APP_CONFIG.liffId) {
-        hint.textContent = '尚未設定 LIFF。請先在 api-config.js 填入 liffId，才能直接分享 Flex 卡片。';
+      const liffId = String(window.APP_CONFIG?.liffId || '').trim();
+      if (!window.liff) {
+        hint.textContent = 'LINE SDK 載入失敗，請稍後重試。';
+        return;
+      }
+      if (!liffId) {
+        hint.textContent = '尚未設定 LIFF ID，請先更新 api-config.js。';
         return;
       }
       try {
         btn.disabled = true;
         hint.textContent = '正在啟動 LINE 分享…';
-        if (!liff.isLoggedIn()) liff.login();
-        await liff.init({ liffId: APP_CONFIG.liffId });
-        if (!liff.isInClient() || !liff.isApiAvailable('shareTargetPicker')) {
+        await liff.init({ liffId });
+        if (!liff.isLoggedIn()) {
+          liff.login({ redirectUri: location.href });
+          return;
+        }
+        if (!liff.isInClient()) {
           hint.textContent = '請在 LINE App 內開啟此頁，才能直接分享 Flex 卡片。';
+          return;
+        }
+        if (!liff.isApiAvailable('shareTargetPicker')) {
+          hint.textContent = '目前 LINE 環境不支援分享選擇器。';
           return;
         }
         await liff.shareTargetPicker([buildFlex(record)]);
         hint.textContent = '已開啟 LINE 分享選擇器。';
       } catch (error) {
-        hint.textContent = 'LINE 分享失敗：' + error.message;
+        hint.textContent = 'LINE 分享失敗：' + (error && error.message ? error.message : String(error));
       } finally {
         btn.disabled = false;
       }
