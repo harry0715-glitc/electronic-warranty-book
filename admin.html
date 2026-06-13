@@ -724,7 +724,7 @@
       populateForm(record);
       await showSaved(record, '已載入案件，可修改後重新儲存');
       document.getElementById('statusBox').textContent = `修改模式｜案件編號 ${record.caseId}`;
-      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('resultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     async function deleteWarrantyRecord(caseId) {
