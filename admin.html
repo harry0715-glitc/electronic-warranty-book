@@ -79,11 +79,20 @@
     </section>
 
     <section class="panel hidden" id="resultPanel">
-      <h2>已建立草稿</h2>
+      <h2>已建立案件</h2>
       <div class="result">
         <div class="status" id="statusBox"></div>
-        <div class="small">你也可以直接打開剛建立的完整保固書頁：</div>
+        <div class="small">完整保固書網址</div>
         <div class="status"><a id="warrantyLink" href="#" target="_blank" style="color:#ffe2a7;word-break:break-all;">尚未建立</a></div>
+        <div class="small">LINE LIFF 專屬開啟連結</div>
+        <div class="status"><a id="liffLink" href="#" target="_blank" style="color:#ffe2a7;word-break:break-all;">尚未建立</a></div>
+        <div class="small">分享文案（可直接複製後貼到 LINE）</div>
+        <textarea id="shareMessage" readonly style="min-height:150px;"></textarea>
+        <div class="actions">
+          <button class="secondary" type="button" id="copyWarrantyLinkBtn">複製保固書連結</button>
+          <button class="secondary" type="button" id="copyLiffLinkBtn">複製 LIFF 連結</button>
+          <button class="primary" type="button" id="copyShareMessageBtn">複製分享文案</button>
+        </div>
       </div>
     </section>
   </div>
@@ -93,6 +102,46 @@
     function getBaseUrl() {
       if (window.APP_CONFIG && APP_CONFIG.publicBase) return APP_CONFIG.publicBase.replace(/\/$/, '');
       return location.origin + location.pathname.replace(/\/[^/]*$/, '');
+    }
+
+    function getLiffLaunchUrl(record) {
+      const liffId = String(window.APP_CONFIG?.liffId || '').trim();
+      if (!liffId) return '';
+      const params = new URLSearchParams({ id: record.caseId || '' });
+      return `https://liff.line.me/${encodeURIComponent(liffId)}?${params.toString()}`;
+    }
+
+    function formatDateText(value) {
+      const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || '').trim());
+      if (!match) return value || '未提供';
+      return `${match[1]}-${match[2]}-${match[3]}`;
+    }
+
+    function buildShareMessage(record) {
+      const liffUrl = getLiffLaunchUrl(record);
+      return [
+        '您好，以下是您的電子保固書入口：',
+        `客戶名稱：${record.customerName || '未提供'}`,
+        `案件編號：${record.caseId || '未提供'}`,
+        `保固期間：${formatDateText(record.warrantyStart)} 至 ${formatDateText(record.warrantyEnd)}`,
+        '',
+        `LINE 入口：${liffUrl || record.warrantyUrl}`,
+        `網頁版：${record.warrantyUrl}`
+      ].join('\n');
+    }
+
+    async function copyText(text) {
+      if (!text) return;
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const temp = document.createElement('textarea');
+      temp.value = text;
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      temp.remove();
     }
 
     function getCases() {
@@ -169,9 +218,29 @@
     function showSaved(record, modeText) {
       document.getElementById('resultPanel').classList.remove('hidden');
       document.getElementById('statusBox').textContent = `${modeText}｜案件編號 ${record.caseId}｜狀態 ${record.statusText}`;
-      const link = document.getElementById('warrantyLink');
-      link.href = record.warrantyUrl;
-      link.textContent = record.warrantyUrl;
+
+      const warrantyLink = document.getElementById('warrantyLink');
+      warrantyLink.href = record.warrantyUrl;
+      warrantyLink.textContent = record.warrantyUrl;
+
+      const liffUrl = getLiffLaunchUrl(record);
+      const liffLink = document.getElementById('liffLink');
+      liffLink.href = liffUrl || record.warrantyUrl;
+      liffLink.textContent = liffUrl || '尚未設定 LIFF ID';
+
+      document.getElementById('shareMessage').value = buildShareMessage(record);
+      document.getElementById('copyWarrantyLinkBtn').onclick = async () => {
+        await copyText(record.warrantyUrl);
+        document.getElementById('statusBox').textContent = `已複製保固書連結｜案件編號 ${record.caseId}`;
+      };
+      document.getElementById('copyLiffLinkBtn').onclick = async () => {
+        await copyText(liffUrl || record.warrantyUrl);
+        document.getElementById('statusBox').textContent = `已複製 LIFF 連結｜案件編號 ${record.caseId}`;
+      };
+      document.getElementById('copyShareMessageBtn').onclick = async () => {
+        await copyText(buildShareMessage(record));
+        document.getElementById('statusBox').textContent = `已複製分享文案｜案件編號 ${record.caseId}`;
+      };
     }
 
     async function pushToApi(record) {
@@ -211,9 +280,9 @@
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const record = saveRecord(buildRecord(form));
-      showSaved(record, '已建立並準備開啟完整保固書');
+      showSaved(record, '已建立並產生專屬分享資訊');
       await pushToApi(record);
-      location.href = record.warrantyUrl + '&from=admin';
+      window.open(record.warrantyUrl + '&from=admin', '_blank', 'noopener');
     });
 
     document.getElementById('saveOnlyBtn').addEventListener('click', async () => {
