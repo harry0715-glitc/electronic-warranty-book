@@ -1,0 +1,50 @@
+{
+  "to": "REPLACE_WITH_USER_ID",
+  "messages": [
+    {
+      "type": "flex",
+      "altText": "楓根室內裝修設計有限公司｜電子保固書",
+      "contents": {
+        "type": "bubble",
+        "body": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "md",
+          "contents": [
+            {
+              "type": "text",
+              "text": "電子保固書已建立",
+              "weight": "bold",
+              "size": "lg",
+              "color": "#D4B071"
+            },
+            {
+              "type": "text",
+              "text": "可點擊下方按鈕查看保固內容、報修流程與聯絡資訊。",
+              "wrap": true,
+              "size": "sm",
+              "color": "#F6ECD8"
+            }
+          ],
+          "backgroundColor": "#1A1614"
+        },
+        "footer": {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "button",
+              "style": "primary",
+              "color": "#D4B071",
+              "action": {
+                "type": "uri",
+                "label": "查看電子保固書",
+                "uri": "https://example.com/warranty-book"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "type": "flex",
+  "altText": "楓根室內裝修設計有限公司｜電子保固書",
+  "contents": {
+    "type": "bubble",
+    "size": "mega",
+    "body": {
+      "type": "box",
+      "layout": "vertical",
+      "spacing": "md",
+      "contents": [
+        {
+          "type": "text",
+          "text": "電子保固書",
+          "weight": "bold",
+          "size": "xl",
+          "color": "#D4B071"
+        },
+        {
+          "type": "text",
+          "text": "楓根室內裝修設計有限公司",
+          "size": "sm",
+          "color": "#CFC6B5",
+          "wrap": true
+        },
+        {
+          "type": "separator",
+          "margin": "md"
+        },
+        {
+          "type": "text",
+          "text": "案件編號｜WG-2026-001\n保固期間｜2026.06.13 — 2027.06.12\n狀態｜生效中",
+          "size": "sm",
+          "color": "#F6ECD8",
+          "wrap": true
+        }
+      ],
+      "backgroundColor": "#1A1614"
+    },
+    "footer": {
+      "type": "box",
+      "layout": "vertical",
+      "contents": [
+        {
+          "type": "button",
+          "style": "primary",
+          "color": "#D4B071",
+          "action": {
+            "type": "uri",
+            "label": "開啟保固書",
+            "uri": "https://example.com/warranty-book"
+          }
+        }
+      ]
+    }
+  }
+}
