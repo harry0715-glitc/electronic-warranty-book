@@ -198,13 +198,21 @@
       return data.warrantyStart && data.warrantyEnd ? (formatIsoDateToRoc(data.warrantyStart) + ' 至 ' + formatIsoDateToRoc(data.warrantyEnd)) : '未設定';
     }
 
-    const SHARE_TEMPLATE_URL = 'line-flex-message.json?v=20260613-3';
+    const SHARE_TEMPLATE_URL = 'line-flex-message.json?v=20260613-4';
     let lineShareReady = false;
+
+    function formatWarrantyPeriod(record) {
+      return `${formatIsoDateToRoc(record.warrantyStart)} 至 ${formatIsoDateToRoc(record.warrantyEnd)}`;
+    }
+
+    function getShareTitle(record) {
+      return record.customerName || record.projectName || '電子保固書';
+    }
 
     function buildFlex(record) {
       return {
         type: 'flex',
-        altText: `${record.projectName}｜電子保固書`,
+        altText: `${getShareTitle(record)}｜電子保固書`,
         contents: {
           type: 'bubble',
           size: 'mega',
@@ -213,15 +221,17 @@
             layout: 'vertical',
             spacing: 'md',
             contents: [
-              { type: 'text', text: '電子保固書', weight: 'bold', size: 'xl', color: '#D4B071' },
-              { type: 'text', text: record.projectName, wrap: true, size: 'md', color: '#F6ECD8', weight: 'bold' },
-              { type: 'text', text: `案件編號｜${record.caseId}\n保固期間｜${formatIsoDateToRoc(record.warrantyStart)} 至 ${formatIsoDateToRoc(record.warrantyEnd)}\n狀態｜${record.statusText}`, wrap: true, size: 'sm', color: '#D2C7B6' }
+              { type: 'text', text: '電子保固書入口卡', weight: 'bold', size: 'xl', color: '#D4B071' },
+              { type: 'text', text: `客戶名稱｜${record.customerName || '未提供'}`, wrap: true, size: 'md', color: '#F6ECD8', weight: 'bold' },
+              { type: 'text', text: `案件編號｜${record.caseId || '未提供'}`, wrap: true, size: 'sm', color: '#D2C7B6' },
+              { type: 'text', text: `保固期間｜${formatWarrantyPeriod(record)}`, wrap: true, size: 'sm', color: '#D2C7B6' }
             ],
-            backgroundColor: '#1A1614'
+            backgroundColor: '#1A1614',
+            paddingAll: '20px'
           },
           footer: {
             type: 'box', layout: 'vertical', spacing: 'sm', contents: [
-              { type: 'button', style: 'primary', color: '#D4B071', action: { type: 'uri', label: '查看完整保固書', uri: record.warrantyUrl || location.href } },
+              { type: 'button', style: 'primary', color: '#D4B071', action: { type: 'uri', label: '查看保固書', uri: record.warrantyUrl || location.href } },
               { type: 'button', style: 'secondary', action: { type: 'uri', label: '我要報修', uri: record.repairUrl || ('repair.html?id=' + encodeURIComponent(record.caseId || '')) } }
             ]
           }
@@ -258,15 +268,18 @@
         const payload = await response.json();
         const messages = normalizeShareMessages(payload);
         const flex = JSON.parse(JSON.stringify(messages[0]));
-        if (flex.altText) flex.altText = `${record.projectName}｜電子保固書`;
+        if (flex.altText) flex.altText = `${getShareTitle(record)}｜電子保固書`;
         const bodyContents = flex?.contents?.body?.contents;
-        if (Array.isArray(bodyContents) && bodyContents.length >= 3) {
-          bodyContents[1].text = record.projectName || '電子保固書';
-          bodyContents[2].text = `案件編號｜${record.caseId}\n保固期間｜${formatIsoDateToRoc(record.warrantyStart)} 至 ${formatIsoDateToRoc(record.warrantyEnd)}\n狀態｜${record.statusText}`;
+        if (Array.isArray(bodyContents) && bodyContents.length >= 4) {
+          bodyContents[1].text = `客戶名稱｜${record.customerName || '未提供'}`;
+          bodyContents[2].text = `案件編號｜${record.caseId || '未提供'}`;
+          bodyContents[3].text = `保固期間｜${formatWarrantyPeriod(record)}`;
         }
         const footerContents = flex?.contents?.footer?.contents;
         if (Array.isArray(footerContents) && footerContents.length >= 2) {
+          footerContents[0].action.label = '查看保固書';
           footerContents[0].action.uri = record.warrantyUrl || location.href;
+          footerContents[1].action.label = '我要報修';
           footerContents[1].action.uri = record.repairUrl || ((window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || location.href);
         }
         return [flex];

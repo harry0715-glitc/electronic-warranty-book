@@ -1,6 +1,6 @@
 {
   "type": "flex",
-  "altText": "楠梓 四季心 B7/6F｜電子保固書",
+  "altText": "王先生｜電子保固書",
   "contents": {
     "type": "bubble",
     "size": "mega",
@@ -8,17 +8,19 @@
       "type": "box",
       "layout": "vertical",
       "spacing": "md",
+      "paddingAll": "20px",
+      "backgroundColor": "#1A1614",
       "contents": [
         {
           "type": "text",
-          "text": "電子保固書",
+          "text": "電子保固書入口卡",
           "weight": "bold",
           "size": "xl",
           "color": "#D4B071"
         },
         {
           "type": "text",
-          "text": "楠梓 四季心 B7/6F",
+          "text": "客戶名稱｜王先生",
           "wrap": true,
           "size": "md",
           "color": "#F6ECD8",
@@ -26,13 +28,19 @@
         },
         {
           "type": "text",
-          "text": "案件編號｜WG-2026-001\n保固期間｜115 年 06 月 13 日 至 116 年 06 月 12 日\n狀態｜保固生效中",
+          "text": "案件編號｜WG-2026-001",
+          "wrap": true,
+          "size": "sm",
+          "color": "#D2C7B6"
+        },
+        {
+          "type": "text",
+          "text": "保固期間｜115 年 06 月 13 日 至 116 年 06 月 12 日",
           "wrap": true,
           "size": "sm",
           "color": "#D2C7B6"
         }
-      ],
-      "backgroundColor": "#1A1614"
+      ]
     },
     "footer": {
       "type": "box",
@@ -45,7 +53,7 @@
           "color": "#D4B071",
           "action": {
             "type": "uri",
-            "label": "查看完整保固書",
+            "label": "查看保固書",
             "uri": "https://example.com/index.html?id=WG-2026-001"
           }
         },
