@@ -115,7 +115,7 @@
           <a id="repairLink" class="btn btn-primary" href="#">我要報修</a>
           <button id="lineShareBtn" class="btn btn-secondary" type="button">分享給 LINE 好友</button>
         </div>
-        <div class="hint" id="shareHint">若要直接送出 Flex 卡片，請在 LINE 內開啟，並於 `api-config.js` 設定 `liffId`。</div>
+        <div class="hint" id="shareHint">分享按鈕會依目前 LINE / LIFF 狀態自動切換；若無法分享，這裡會顯示原因。</div>
       </article>
     </section>
 
@@ -198,6 +198,9 @@
       return data.warrantyStart && data.warrantyEnd ? (formatIsoDateToRoc(data.warrantyStart) + ' 至 ' + formatIsoDateToRoc(data.warrantyEnd)) : '未設定';
     }
 
+    const SHARE_TEMPLATE_URL = 'line-flex-message.json?v=20260613-3';
+    let lineShareReady = false;
+
     function buildFlex(record) {
       return {
         type: 'flex',
@@ -226,40 +229,102 @@
       };
     }
 
-    async function shareViaLine(record) {
+    function setShareState({ disabled, label, hint }) {
       const btn = document.getElementById('lineShareBtn');
-      const hint = document.getElementById('shareHint');
+      const hintEl = document.getElementById('shareHint');
+      btn.disabled = Boolean(disabled);
+      if (label) btn.textContent = label;
+      if (typeof hint === 'string') hintEl.textContent = hint;
+    }
+
+    function summarizeShareError(error) {
+      const rawMessage = error?.message || error?.reason || '';
+      const code = error?.code || error?.name || 'UNKNOWN';
+      const shortMessage = String(rawMessage).replace(/^.*?:\s*/, '').replace(/\s+/g, ' ').trim();
+      return shortMessage ? `${code}: ${shortMessage}` : code;
+    }
+
+    function normalizeShareMessages(payload) {
+      if (Array.isArray(payload)) return payload;
+      if (payload && Array.isArray(payload.messages)) return payload.messages;
+      if (payload && typeof payload === 'object') return [payload];
+      throw new Error('分享訊息格式不正確');
+    }
+
+    async function loadShareMessages(record) {
+      try {
+        const response = await fetch(SHARE_TEMPLATE_URL, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Flex message JSON 載入失敗（HTTP ${response.status}）`);
+        const payload = await response.json();
+        const messages = normalizeShareMessages(payload);
+        const flex = JSON.parse(JSON.stringify(messages[0]));
+        if (flex.altText) flex.altText = `${record.projectName}｜電子保固書`;
+        const bodyContents = flex?.contents?.body?.contents;
+        if (Array.isArray(bodyContents) && bodyContents.length >= 3) {
+          bodyContents[1].text = record.projectName || '電子保固書';
+          bodyContents[2].text = `案件編號｜${record.caseId}\n保固期間｜${formatIsoDateToRoc(record.warrantyStart)} 至 ${formatIsoDateToRoc(record.warrantyEnd)}\n狀態｜${record.statusText}`;
+        }
+        const footerContents = flex?.contents?.footer?.contents;
+        if (Array.isArray(footerContents) && footerContents.length >= 2) {
+          footerContents[0].action.uri = record.warrantyUrl || location.href;
+          footerContents[1].action.uri = record.repairUrl || ((window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || location.href);
+        }
+        return [flex];
+      } catch (error) {
+        console.warn('loadShareMessages fallback to buildFlex', error);
+        return [buildFlex(record)];
+      }
+    }
+
+    async function initLineShare() {
       const liffId = String(window.APP_CONFIG?.liffId || '').trim();
       if (!window.liff) {
-        hint.textContent = 'LINE SDK 載入失敗，請稍後重試。';
+        setShareState({ disabled: true, label: 'LINE SDK 載入失敗', hint: 'LINE SDK 載入失敗，請稍後重試。' });
         return;
       }
       if (!liffId) {
-        hint.textContent = '尚未設定 LIFF ID，請先更新 api-config.js。';
+        setShareState({ disabled: true, label: '尚未設定 LIFF', hint: '尚未設定 LIFF ID，暫時無法分享。' });
         return;
       }
       try {
-        btn.disabled = true;
-        hint.textContent = '正在啟動 LINE 分享…';
         await liff.init({ liffId });
+        if (!liff.isInClient()) {
+          setShareState({ disabled: true, label: '請在 LINE 內開啟', hint: '請在 LINE App 內開啟此頁，才能直接分享 Flex 卡片。' });
+          return;
+        }
+        if (typeof liff.isApiAvailable === 'function' && !liff.isApiAvailable('shareTargetPicker')) {
+          setShareState({ disabled: true, label: '此 LINE 環境不支援分享', hint: '目前 LINE 環境不支援分享選擇器，請更新 LINE App 後再試。' });
+          return;
+        }
+        lineShareReady = true;
+        setShareState({ disabled: false, label: '分享給 LINE 好友', hint: '可直接分享到 LINE 好友或群組。' });
+      } catch (error) {
+        lineShareReady = false;
+        setShareState({ disabled: true, label: 'LIFF 初始化失敗', hint: 'LINE 分享初始化失敗：' + summarizeShareError(error) });
+      }
+    }
+
+    async function shareViaLine(record) {
+      if (!lineShareReady) {
+        await initLineShare();
+        if (!lineShareReady) return;
+      }
+      const hint = document.getElementById('shareHint');
+      try {
+        setShareState({ disabled: true, label: '開啟分享中…', hint: '正在開啟 LINE 好友選取視窗…' });
         if (!liff.isLoggedIn()) {
           liff.login({ redirectUri: location.href });
           return;
         }
-        if (!liff.isInClient()) {
-          hint.textContent = '請在 LINE App 內開啟此頁，才能直接分享 Flex 卡片。';
-          return;
+        const messages = await loadShareMessages(record);
+        const result = await liff.shareTargetPicker(messages, { isMultiple: true });
+        if (result && result.status === 'success') {
+          setShareState({ disabled: false, label: '再次分享給 LINE 好友', hint: '已送出分享。' });
+        } else {
+          setShareState({ disabled: false, label: '分享給 LINE 好友', hint: '你已取消分享。' });
         }
-        if (!liff.isApiAvailable('shareTargetPicker')) {
-          hint.textContent = '目前 LINE 環境不支援分享選擇器。';
-          return;
-        }
-        await liff.shareTargetPicker([buildFlex(record)]);
-        hint.textContent = '已開啟 LINE 分享選擇器。';
       } catch (error) {
-        hint.textContent = 'LINE 分享失敗：' + (error && error.message ? error.message : String(error));
-      } finally {
-        btn.disabled = false;
+        setShareState({ disabled: false, label: '分享失敗，點此重試', hint: 'LINE 分享失敗：' + summarizeShareError(error) });
       }
     }
 
@@ -340,6 +405,7 @@
       shareViaLine(currentRecord);
     });
 
+    initLineShare();
     main();
   </script>
 </body>
