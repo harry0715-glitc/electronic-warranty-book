@@ -82,7 +82,7 @@
           <div class="field"><label>驗收日期</label><input type="date" name="acceptanceDate" value="2026-06-13" required /></div>
           <div class="field"><label>保固起日</label><input type="date" name="warrantyStart" value="2026-06-13" required /></div>
           <div class="field"><label>保固迄日</label><input type="date" name="warrantyEnd" value="2027-06-12" required /></div>
-          <div class="field-full"><label>結算金額</label><input name="amount" value="新台幣 陸拾壹萬伍仟 元整（615,000 元）" required /></div>
+          <div class="field-full"><label>結算金額</label><input name="amount" value="615000" inputmode="numeric" placeholder="請輸入阿拉伯數字，例如 615000" required /></div>
           <div class="field"><label>承攬廠商</label><input name="issuerCompany" value="楓根室內裝修設計有限公司" required /></div>
           <div class="field"><label>負責人</label><input name="issuerResponsiblePerson" value="林 榮 祥" required /></div>
           <div class="field-full"><label>公司地址</label><input name="issuerAddress" value="高雄市楠梓區清成街 31 號" required /></div>
@@ -267,6 +267,63 @@
       return '保固生效中';
     }
 
+    function normalizeAmountDigits(value) {
+      return String(value || '').replace(/[^\d]/g, '');
+    }
+
+    function sectionToUpperChinese(section) {
+      const digits = ['零', '壹', '貳', '參', '肆', '伍', '陸', '柒', '捌', '玖'];
+      const units = ['', '拾', '佰', '仟'];
+      let text = '';
+      let zeroPending = false;
+      const raw = String(section || '');
+      for (let i = 0; i < raw.length; i += 1) {
+        const num = Number(raw[i]);
+        const unitIndex = raw.length - i - 1;
+        if (num === 0) {
+          zeroPending = text !== '';
+          continue;
+        }
+        if (zeroPending) {
+          text += '零';
+          zeroPending = false;
+        }
+        text += digits[num] + units[unitIndex];
+      }
+      return text;
+    }
+
+    function numberToUpperChinese(value) {
+      const digitsOnly = normalizeAmountDigits(value).replace(/^0+/, '') || '0';
+      if (digitsOnly === '0') return '零';
+      const bigUnits = ['', '萬', '億', '兆'];
+      const padded = digitsOnly.padStart(Math.ceil(digitsOnly.length / 4) * 4, '0');
+      const groups = padded.match(/.{1,4}/g) || [];
+      let result = '';
+      let zeroBetweenGroups = false;
+      groups.forEach((group, index) => {
+        const groupText = sectionToUpperChinese(group);
+        const hasValue = Number(group) > 0;
+        const unit = bigUnits[groups.length - index - 1] || '';
+        if (!hasValue) {
+          if (result) zeroBetweenGroups = true;
+          return;
+        }
+        if (result && (zeroBetweenGroups || Number(group) < 1000)) result += '零';
+        result += groupText + unit;
+        zeroBetweenGroups = false;
+      });
+      return result.replace(/零+/g, '零').replace(/零$/g, '');
+    }
+
+    function formatAmountText(value) {
+      const digitsOnly = normalizeAmountDigits(value);
+      if (!digitsOnly) return String(value || '').trim();
+      const amountNumber = Number(digitsOnly);
+      if (!Number.isFinite(amountNumber)) return String(value || '').trim();
+      return `新台幣 ${numberToUpperChinese(digitsOnly)} 元整（${amountNumber.toLocaleString('en-US')} 元）`;
+    }
+
     function buildRecord(form) {
       const caseId = nextCaseId();
       const baseUrl = getBaseUrl();
@@ -281,7 +338,7 @@
         address: form.address.value.trim(),
         scope: form.scope.value.trim(),
         completionDate: toIsoDate(form.completionDate.value),
-        amount: form.amount.value.trim(),
+        amount: formatAmountText(form.amount.value),
         acceptanceDate: toIsoDate(form.acceptanceDate.value),
         warrantyStart,
         warrantyEnd,
@@ -366,6 +423,18 @@
 
     const form = document.getElementById('warrantyForm');
     const lookupInput = document.getElementById('lookupAddress');
+    const amountInput = form.elements.amount;
+
+    amountInput.addEventListener('blur', () => {
+      const digitsOnly = normalizeAmountDigits(amountInput.value);
+      if (!digitsOnly) return;
+      amountInput.value = formatAmountText(digitsOnly);
+    });
+
+    amountInput.addEventListener('focus', () => {
+      const digitsOnly = normalizeAmountDigits(amountInput.value);
+      if (digitsOnly) amountInput.value = digitsOnly;
+    });
 
     document.getElementById('lookupBtn').addEventListener('click', async () => {
       await openCaseByAddress(lookupInput.value);
