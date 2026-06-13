@@ -19,6 +19,10 @@
     .steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:4px; }
     .step { padding:12px 14px; border-radius:14px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); }
     .step strong { display:block; color:var(--gold); margin-bottom:4px; }
+    .quick-tools { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; margin-top:10px; align-items:end; }
+    .quick-tools label { font-size:13px; color:var(--muted); }
+    .quick-tools input { width:100%; }
+    .notice-list { margin:0; padding-left:1.2em; display:grid; gap:6px; color:#f2e3c4; }
     .panel { padding:18px; }
     .panel h2 { margin:0 0 14px; color:var(--gold); font-size:18px; }
     form { display:grid; gap:14px; }
@@ -36,25 +40,38 @@
     .status { padding:12px 14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.08); color:#f2e3c4; }
     .result { display:grid; gap:10px; }
     .hidden { display:none !important; }
-    @media (max-width: 900px) { .fields,.steps { grid-template-columns:1fr; } }
+    @media (max-width: 900px) { .fields,.steps,.quick-tools { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
   <div class="wrap">
     <section class="hero">
       <h1>電子保固書建立</h1>
-      <p>依你指定的流程，這裡只輸入基本資訊。送出後會直接跳到完整保固書頁，下方只保留 <strong>我要報修</strong> 與 <strong>分享給 LINE 好友</strong>。</p>
+      <p>此頁用來建立新的電子保固書案件。建立完成後，系統會自動產生 <strong>完整保固書網址</strong>、<strong>LIFF 專屬連結</strong> 與 <strong>可直接轉傳給客戶的分享文案</strong>。</p>
       <div class="steps">
-        <div class="step"><strong>1. 輸入基本資訊</strong><span>不手動輸入案件編號，系統自動排序產生。</span></div>
-        <div class="step"><strong>2. 直接預覽保固書</strong><span>送出後直接打開完整正式文件頁。</span></div>
-        <div class="step"><strong>3. 分享給好友</strong><span>在保固書頁下方用 LINE 分享 Flex 卡片。</span></div>
+        <div class="step"><strong>1. 填寫案件資料</strong><span>案件編號由系統自動產生，不需手動輸入。</span></div>
+        <div class="step"><strong>2. 送出前再次確認</strong><span>本頁送出後不提供直接編輯；若有誤植，可至 Google Sheet 修正。</span></div>
+        <div class="step"><strong>3. 複製專屬連結</strong><span>建立成功後可直接複製 LIFF 連結與分享文案傳給客戶。</span></div>
+      </div>
+      <div class="quick-tools">
+        <div class="field-full">
+          <label for="lookupCaseId">查詢既有保固書（輸入案件編號）</label>
+          <input id="lookupCaseId" placeholder="例如：WG-2026-002" />
+        </div>
+        <button class="secondary" type="button" id="lookupBtn">查詢保固書</button>
       </div>
     </section>
 
     <section class="panel">
       <h2>基本資訊</h2>
       <form id="warrantyForm">
-        <div class="form-note">保固狀態不需輸入，會依保固起迄日期自動判定。客服按鈕與備註欄已移除。</div>
+        <div class="form-note">
+          <ul class="notice-list">
+            <li>請先確認客戶名稱、案件名稱、地址與保固日期是否正確。</li>
+            <li>本頁送出後不提供直接修改；若日後發現誤植，可到 Google Sheet 修正資料。</li>
+            <li>建立成功後會自動產生該案件專屬 LIFF 連結與分享文案。</li>
+          </ul>
+        </div>
         <div class="fields">
           <div class="field"><label>案件名稱</label><input name="projectName" value="楠梓 四季心 B7/6F" required /></div>
           <div class="field"><label>客戶名稱</label><input name="customerName" value="王先生" required /></div>
@@ -128,6 +145,34 @@
         `LINE 入口：${liffUrl || record.warrantyUrl}`,
         `網頁版：${record.warrantyUrl}`
       ].join('\n');
+    }
+
+    function normalizeCaseId(value) {
+      return String(value || '').trim().toUpperCase();
+    }
+
+    function openCaseById(caseId) {
+      const normalized = normalizeCaseId(caseId);
+      if (!normalized) {
+        alert('請先輸入案件編號，例如 WG-2026-002');
+        return;
+      }
+      const baseUrl = getBaseUrl();
+      window.open(`${baseUrl}/index.html?id=${encodeURIComponent(normalized)}`, '_blank', 'noopener');
+    }
+
+    function confirmCreate(record, mode) {
+      const actionLabel = mode === 'save' ? '儲存草稿' : '建立保固書';
+      return window.confirm([
+        `請再次確認以下資料是否正確：`,
+        `案件名稱：${record.projectName}`,
+        `客戶名稱：${record.customerName}`,
+        `案件地址：${record.address}`,
+        `保固期間：${formatDateText(record.warrantyStart)} 至 ${formatDateText(record.warrantyEnd)}`,
+        '',
+        `按下「確定」後將${actionLabel}，本頁不提供直接修改。`,
+        `若日後發現誤植，仍可至 Google Sheet 修正。`
+      ].join('\n'));
     }
 
     async function copyText(text) {
@@ -277,16 +322,33 @@
     }
 
     const form = document.getElementById('warrantyForm');
+    const lookupInput = document.getElementById('lookupCaseId');
+
+    document.getElementById('lookupBtn').addEventListener('click', () => {
+      openCaseById(lookupInput.value);
+    });
+
+    lookupInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        openCaseById(lookupInput.value);
+      }
+    });
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const record = saveRecord(buildRecord(form));
+      const record = buildRecord(form);
+      if (!confirmCreate(record, 'create')) return;
+      saveRecord(record);
       showSaved(record, '已建立並產生專屬分享資訊');
       await pushToApi(record);
       window.open(record.warrantyUrl + '&from=admin', '_blank', 'noopener');
     });
 
     document.getElementById('saveOnlyBtn').addEventListener('click', async () => {
-      const record = saveRecord(buildRecord(form));
+      const record = buildRecord(form);
+      if (!confirmCreate(record, 'save')) return;
+      saveRecord(record);
       showSaved(record, '已儲存草稿');
       await pushToApi(record);
     });
