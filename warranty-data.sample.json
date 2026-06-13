@@ -1,22 +1,23 @@
 {
-  "docTitle": "保固切結書",
+  "caseId": "WG-2026-001",
   "statusText": "保固生效中",
-  "fields": [
-    { "label": "案件名稱", "value": "楠梓 四季心 B7/6F" },
-    { "label": "工程地點", "value": "高雄市楠梓區右昌街 358 號 6 樓之 7" },
-    { "label": "承攬範圍", "value": "如契約書（報價單內容）" },
-    { "label": "竣工日期", "value": "115 年 06 月 13 日" },
-    { "label": "結算金額", "value": "新台幣 陸拾壹萬伍仟 元整（615,000 元）" },
-    { "label": "驗收合格日期", "value": "115 年 06 月 13 日", "emphasize": true },
-    { "label": "保固日期", "value": "115 年 06 月 13 日至 116 年 06 月 12 日", "emphasize": true }
-  ],
-  "warrantyStatement": "上列工程自驗收合格之日起計算，在保固期內，如發生局部或全部損壞時，本公司願負完全修復責任（如遇天災及不可抗拒因素或人為之故意行為，則不再此限），並拋棄先訴抗辯權，僅此聲明。",
-  "issuer": [
-    { "label": "承攬廠商", "value": "楓根室內裝修設計有限公司" },
-    { "label": "負責人", "value": "林 榮 祥" },
-    { "label": "地址", "value": "高雄市楠梓區清成街 31 號" }
-  ],
-  "rocDate": ["中華民國", "115 年", "06 月", "13 日"],
-  "repairLink": { "label": "報修申請", "href": "#" },
-  "contactLink": { "label": "客服聯絡", "href": "#" }
+  "projectName": "楠梓 四季心 B7/6F",
+  "customerName": "王先生",
+  "customerPhone": "0912-345-678",
+  "address": "高雄市楠梓區右昌街 358 號 6 樓之 7",
+  "scope": "如契約書（報價單內容）",
+  "completionDate": "115 年 06 月 13 日",
+  "amount": "新台幣 陸拾壹萬伍仟 元整（615,000 元）",
+  "acceptanceDate": "115 年 06 月 13 日",
+  "warrantyStart": "115 年 06 月 13 日",
+  "warrantyEnd": "116 年 06 月 12 日",
+  "warrantyStatement": "上列工程自驗收合格之日起計算，在保固期內，如發生局部或全部損壞時，本公司願負完全修復責任（如遇天災及不可抗拒因素或人為之故意行為，則不在此限），並拋棄先訴抗辯權，僅此聲明。",
+  "issuer": {
+    "company": "楓根室內裝修設計有限公司",
+    "responsiblePerson": "林 榮 祥",
+    "address": "高雄市楠梓區清成街 31 號"
+  },
+  "repairUrl": "repair.html?id=WG-2026-001",
+  "contactUrl": "tel:0900-000-000",
+  "notes": "此為 MVP 範例資料。正式上線後可從 Apps Script / Google Sheet 動態讀取。"
 }

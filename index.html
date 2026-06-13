@@ -4,394 +4,93 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>楓根室內裝修設計有限公司｜電子保固書</title>
-  <meta name="description" content="以保固切結書為基礎延伸的電子保固書，保留正式文件結構，同時加入數位化查閱、報修與附件索引能力。" />
-  <meta property="og:title" content="楓根室內裝修設計有限公司｜電子保固書" />
-  <meta property="og:description" content="正式文件感的電子保固書版型，可延伸報修、附件、維修紀錄與分享功能。" />
-  <meta property="og:type" content="website" />
+  <meta name="description" content="電子保固書動態顯示頁，可依案件 ID 顯示完整保固內容，並提供報修與聯絡入口。" />
   <style>
     @font-face {
       font-family: "LINE Seed TW";
-      src: url("assets/fonts/LINESeedTW_Rg.woff2") format("woff2"),
-           url("assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype");
-      font-weight: 400;
-      font-style: normal;
-      font-display: swap;
+      src: url("assets/fonts/LINESeedTW_Rg.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype");
+      font-weight: 400; font-style: normal; font-display: swap;
     }
-
     @font-face {
       font-family: "LINE Seed TW";
-      src: url("assets/fonts/LINESeedTW_Bd.woff2") format("woff2"),
-           url("assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype");
-      font-weight: 700;
-      font-style: normal;
-      font-display: swap;
+      src: url("assets/fonts/LINESeedTW_Bd.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype");
+      font-weight: 700; font-style: normal; font-display: swap;
     }
-
-    @font-face {
-      font-family: "LINE Seed TW";
-      src: url("assets/fonts/LINESeedTW_Eb.woff2") format("woff2"),
-           url("assets/fonts/LINESeedTW_TTF_Eb.ttf") format("truetype");
-      font-weight: 900;
-      font-style: normal;
-      font-display: swap;
-    }
-
     :root {
       --page-bg: #efede8;
       --paper: #fffdfa;
       --ink: #1d1814;
       --ink-soft: #4e4740;
       --line: #847b72;
-      --line-soft: rgba(132, 123, 114, 0.26);
-      --accent: #a23b32;
-      --accent-soft: rgba(162, 59, 50, 0.08);
+      --line-soft: rgba(132,123,114,0.26);
       --gold: #9b7a43;
-      --shadow: 0 24px 60px rgba(38, 28, 20, 0.12);
+      --shadow: 0 24px 60px rgba(38,28,20,0.12);
       --radius-lg: 22px;
       --radius-md: 14px;
       --paper-width: 860px;
       --font-ui: "LINE Seed TW", "Noto Serif TC", "PMingLiU", "PingFang TC", "Microsoft JhengHei", serif;
     }
-
     * { box-sizing: border-box; }
-
     html, body {
-      margin: 0;
-      min-height: 100%;
-      background:
-        radial-gradient(circle at top, rgba(155,122,67,0.08), transparent 22%),
-        linear-gradient(180deg, #f4f1eb 0%, #ebe6de 100%);
-      color: var(--ink);
-      font-family: var(--font-ui);
+      margin: 0; min-height: 100%; color: var(--ink); font-family: var(--font-ui);
+      background: radial-gradient(circle at top, rgba(155,122,67,0.08), transparent 22%), linear-gradient(180deg, #f4f1eb 0%, #ebe6de 100%);
     }
-
-    body {
-      padding: 20px 14px 40px;
-    }
-
-    .page-wrap {
-      width: min(1120px, 100%);
-      margin: 0 auto;
-      display: grid;
-      gap: 20px;
-    }
-
-    .top-note {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-      color: var(--ink-soft);
-      font-size: 13px;
-      padding: 0 4px;
-    }
-
-    .status-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 14px;
-      border-radius: 999px;
-      border: 1px solid rgba(155,122,67,0.24);
-      background: rgba(255,255,255,0.56);
-      color: #6f5528;
-      font-weight: 700;
-    }
-
-    .status-chip::before {
-      content: "";
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #5d8a47;
-      box-shadow: 0 0 0 4px rgba(93,138,71,0.12);
-    }
-
-    .paper {
-      width: min(var(--paper-width), 100%);
-      margin: 0 auto;
-      background: var(--paper);
-      border: 1.25px solid var(--line);
-      box-shadow: var(--shadow);
-    }
-
-    .paper-inner {
-      padding: 0;
-    }
-
-    .paper-title {
-      text-align: center;
-      padding: 28px 24px 24px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .paper-title h1 {
-      margin: 0;
-      font-size: clamp(34px, 5vw, 54px);
-      letter-spacing: 0.18em;
-      font-weight: 400;
-    }
-
-    .meta-table {
-      display: grid;
-      grid-template-columns: 188px 1fr;
-    }
-
-    .meta-row {
-      display: contents;
-    }
-
-    .meta-label,
-    .meta-value {
-      min-height: 84px;
-      border-bottom: 1px solid var(--line);
-      display: flex;
-      align-items: center;
-      padding: 18px 18px;
-      font-size: 18px;
-      line-height: 1.65;
-    }
-
-    .meta-label {
-      justify-content: center;
-      text-align: center;
-      border-right: 1px solid var(--line);
-      letter-spacing: 0.12em;
-      background: rgba(0,0,0,0.008);
-      white-space: nowrap;
-    }
-
-    .meta-value strong {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: 0.03em;
-    }
-
-    .statement {
-      border-bottom: 1px solid var(--line);
-      padding: 18px 34px 26px;
-    }
-
-    .statement p {
-      margin: 0;
-      font-size: 18px;
-      line-height: 2.05;
-      text-indent: 2em;
-      letter-spacing: 0.04em;
-    }
-
-    .issuer {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 24px;
-      align-items: end;
-      padding: 26px 34px 26px;
-    }
-
-    .issuer-lines {
-      display: grid;
-      gap: 18px;
-      font-size: 18px;
-      line-height: 1.7;
-    }
-
-    .issuer-line strong {
-      font-weight: 400;
-      letter-spacing: 0.08em;
-    }
-
-    .seals {
-      display: flex;
-      align-items: end;
-      gap: 16px;
-      padding-right: 20px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    .seal {
-      border: 3px solid #d64539;
-      color: #d64539;
-      background: rgba(214, 69, 57, 0.04);
-      display: grid;
-      place-items: center;
-      text-align: center;
-      font-weight: 700;
-      line-height: 1.05;
-      box-shadow: inset 0 0 0 1px rgba(214,69,57,0.25);
-    }
-
-    .seal-main {
-      width: 110px;
-      height: 110px;
-      font-size: 21px;
-      letter-spacing: 0.06em;
-    }
-
-    .seal-sub {
-      width: 66px;
-      height: 66px;
-      font-size: 16px;
-      letter-spacing: 0.08em;
-      margin-bottom: 6px;
-    }
-
-    .paper-date {
-      display: flex;
-      justify-content: center;
-      gap: 26px;
-      border-top: 0;
-      padding: 26px 20px 30px;
-      font-size: 18px;
-      letter-spacing: 0.48em;
-    }
-
-    .digital-grid {
-      width: min(var(--paper-width), 100%);
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 18px;
-    }
-
-    .card {
-      background: rgba(255,255,255,0.78);
-      border: 1px solid var(--line-soft);
-      border-radius: var(--radius-lg);
-      box-shadow: 0 10px 30px rgba(38, 28, 20, 0.06);
-      padding: 18px;
-    }
-
-    .card h2 {
-      margin: 0 0 12px;
-      font-size: 18px;
-      color: #6f5528;
-      letter-spacing: 0.08em;
-    }
-
-    .card p {
-      margin: 0;
-      color: var(--ink-soft);
-      line-height: 1.8;
-      font-size: 14px;
-    }
-
-    .list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .list-item {
-      padding: 12px 14px;
-      border: 1px solid rgba(132,123,114,0.18);
-      border-radius: var(--radius-md);
-      background: rgba(255,255,255,0.72);
-    }
-
-    .list-item strong {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 15px;
-    }
-
-    .list-item span {
-      font-size: 13px;
-      line-height: 1.7;
-      color: var(--ink-soft);
-    }
-
-    .action-row {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 44px;
-      border-radius: 12px;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      transition: transform .15s ease, box-shadow .15s ease;
-    }
-
+    body { padding: 20px 14px 40px; }
+    .page-wrap { width: min(1120px, 100%); margin: 0 auto; display: grid; gap: 20px; }
+    .top-note { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: var(--ink-soft); font-size: 13px; padding: 0 4px; }
+    .status-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(155,122,67,0.24); background: rgba(255,255,255,0.56); color: #6f5528; font-weight: 700; }
+    .status-chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #5d8a47; box-shadow: 0 0 0 4px rgba(93,138,71,0.12); }
+    .paper { width: min(var(--paper-width), 100%); margin: 0 auto; background: var(--paper); border: 1.25px solid var(--line); box-shadow: var(--shadow); }
+    .paper-title { text-align: center; padding: 28px 24px 24px; border-bottom: 1px solid var(--line); }
+    .paper-title h1 { margin: 0; font-size: clamp(34px, 5vw, 54px); letter-spacing: 0.18em; font-weight: 400; }
+    .meta-table { display: grid; grid-template-columns: 188px 1fr; }
+    .meta-row { display: contents; }
+    .meta-label, .meta-value { min-height: 84px; border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 18px; font-size: 18px; line-height: 1.65; }
+    .meta-label { justify-content: center; text-align: center; border-right: 1px solid var(--line); letter-spacing: 0.12em; background: rgba(0,0,0,0.008); white-space: nowrap; }
+    .meta-value strong { font-size: 20px; font-weight: 700; letter-spacing: 0.03em; }
+    .statement { border-bottom: 1px solid var(--line); padding: 18px 34px 26px; }
+    .statement p { margin: 0; font-size: 18px; line-height: 2.05; text-indent: 2em; letter-spacing: 0.04em; }
+    .issuer { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end; padding: 26px 34px; }
+    .issuer-lines { display: grid; gap: 18px; font-size: 18px; line-height: 1.7; }
+    .issuer-line strong { font-weight: 400; letter-spacing: 0.08em; }
+    .seals { display: flex; align-items: end; gap: 16px; padding-right: 20px; flex-wrap: wrap; justify-content: center; }
+    .seal { border: 3px solid #d64539; color: #d64539; background: rgba(214,69,57,0.04); display: grid; place-items: center; text-align: center; font-weight: 700; line-height: 1.05; }
+    .seal-main { width: 110px; height: 110px; font-size: 21px; letter-spacing: 0.06em; }
+    .seal-sub { width: 66px; height: 66px; font-size: 16px; letter-spacing: 0.08em; margin-bottom: 6px; }
+    .paper-date { display: flex; justify-content: center; gap: 26px; padding: 26px 20px 30px; font-size: 18px; letter-spacing: 0.48em; }
+    .digital-grid { width: min(var(--paper-width), 100%); margin: 0 auto; display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; }
+    .card { background: rgba(255,255,255,0.78); border: 1px solid var(--line-soft); border-radius: var(--radius-lg); box-shadow: 0 10px 30px rgba(38,28,20,0.06); padding: 18px; }
+    .card h2 { margin: 0 0 12px; font-size: 18px; color: #6f5528; letter-spacing: 0.08em; }
+    .card p { margin: 0; color: var(--ink-soft); line-height: 1.8; font-size: 14px; }
+    .list { display: grid; gap: 10px; }
+    .list-item { padding: 12px 14px; border: 1px solid rgba(132,123,114,0.18); border-radius: var(--radius-md); background: rgba(255,255,255,0.72); }
+    .list-item strong { display: block; margin-bottom: 4px; font-size: 15px; }
+    .list-item span { font-size: 13px; line-height: 1.7; color: var(--ink-soft); }
+    .action-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 12px; text-decoration: none; font-size: 14px; font-weight: 700; letter-spacing: 0.05em; transition: transform .15s ease, box-shadow .15s ease; }
     .btn:hover { transform: translateY(-1px); }
-
-    .btn-primary {
-      background: linear-gradient(180deg, #aa8660 0%, #8d6a40 100%);
-      color: #fffaf3;
-      box-shadow: 0 8px 20px rgba(141,106,64,0.18);
-    }
-
-    .btn-secondary {
-      border: 1px solid rgba(132,123,114,0.22);
-      color: var(--ink);
-      background: rgba(255,255,255,0.74);
-    }
-
-    .footer-note {
-      width: min(var(--paper-width), 100%);
-      margin: 0 auto;
-      color: rgba(78,71,64,0.82);
-      font-size: 12px;
-      line-height: 1.8;
-      padding: 0 6px;
-    }
-
-    @media (max-width: 900px) {
-      .meta-table { grid-template-columns: 150px 1fr; }
-      .meta-label, .meta-value, .statement p, .issuer-lines, .paper-date { font-size: 16px; }
-      .digital-grid { grid-template-columns: 1fr; }
-    }
-
+    .btn-primary { background: linear-gradient(180deg, #aa8660 0%, #8d6a40 100%); color: #fffaf3; box-shadow: 0 8px 20px rgba(141,106,64,0.18); }
+    .btn-secondary { border: 1px solid rgba(132,123,114,0.22); color: var(--ink); background: rgba(255,255,255,0.74); }
+    .footer-note { width: min(var(--paper-width), 100%); margin: 0 auto; color: rgba(78,71,64,0.82); font-size: 12px; line-height: 1.8; padding: 0 6px; }
+    .loading, .error-box { width: min(var(--paper-width), 100%); margin: 0 auto; padding: 18px; border-radius: 16px; background: rgba(255,255,255,0.75); border: 1px solid rgba(132,123,114,0.2); }
+    .hidden { display: none !important; }
+    @media (max-width: 900px) { .meta-table { grid-template-columns: 150px 1fr; } .meta-label, .meta-value, .statement p, .issuer-lines, .paper-date { font-size: 16px; } .digital-grid { grid-template-columns: 1fr; } }
     @media (max-width: 640px) {
       body { padding: 12px 8px 28px; }
-      .top-note {
-        flex-direction: column;
-        align-items: flex-start;
-      }
+      .top-note { flex-direction: column; align-items: flex-start; }
       .paper-title { padding: 20px 12px 18px; }
       .paper-title h1 { letter-spacing: 0.1em; }
-      .meta-table {
-        grid-template-columns: 112px 1fr;
-      }
-      .meta-label,
-      .meta-value {
-        min-height: 68px;
-        padding: 12px 10px;
-        font-size: 14px;
-        line-height: 1.55;
-      }
+      .meta-table { grid-template-columns: 112px 1fr; }
+      .meta-label, .meta-value { min-height: 68px; padding: 12px 10px; font-size: 14px; line-height: 1.55; }
       .meta-value strong { font-size: 16px; }
       .statement { padding: 14px 16px 18px; }
-      .statement p {
-        font-size: 15px;
-        line-height: 1.9;
-      }
-      .issuer {
-        grid-template-columns: 1fr;
-        gap: 18px;
-        padding: 18px 16px 20px;
-      }
-      .issuer-lines {
-        gap: 12px;
-        font-size: 15px;
-      }
+      .statement p { font-size: 15px; line-height: 1.9; }
+      .issuer { grid-template-columns: 1fr; gap: 18px; padding: 18px 16px 20px; }
+      .issuer-lines { gap: 12px; font-size: 15px; }
       .seals { justify-content: flex-start; padding-right: 0; }
       .seal-main { width: 88px; height: 88px; font-size: 18px; }
       .seal-sub { width: 58px; height: 58px; font-size: 13px; }
-      .paper-date {
-        gap: 12px;
-        flex-wrap: wrap;
-        padding: 18px 12px 22px;
-        font-size: 15px;
-        letter-spacing: 0.2em;
-      }
+      .paper-date { gap: 12px; flex-wrap: wrap; padding: 18px 12px 22px; font-size: 15px; letter-spacing: 0.2em; }
       .card { padding: 14px; }
       .action-row { grid-template-columns: 1fr; }
     }
@@ -400,154 +99,191 @@
 <body>
   <div class="page-wrap">
     <div class="top-note">
-      <div>正式文件骨架 + 電子化延伸版</div>
-      <div class="status-chip" id="statusChip">保固生效中</div>
+      <div id="subNote">動態電子保固書 / 可由管理頁建立案件</div>
+      <div class="status-chip" id="statusChip">載入中</div>
     </div>
 
-    <section class="paper" aria-label="電子保固書主文件">
-      <div class="paper-inner">
-        <header class="paper-title">
-          <h1 id="docTitle">保固切結書</h1>
-        </header>
+    <div id="loadingBox" class="loading">正在載入保固書資料…</div>
+    <div id="errorBox" class="error-box hidden"></div>
 
-        <div class="meta-table" id="metaTable"></div>
-
-        <section class="statement">
-          <p id="warrantyStatement"></p>
-        </section>
-
-        <section class="issuer">
-          <div class="issuer-lines" id="issuerLines"></div>
-          <div class="seals">
-            <div class="seal seal-main">楓根室內<br>裝修設計</div>
-            <div class="seal seal-sub">林榮祥</div>
-          </div>
-        </section>
-
-        <footer class="paper-date" id="rocDate"></footer>
-      </div>
+    <section class="paper hidden" id="paperRoot" aria-label="電子保固書主文件">
+      <header class="paper-title">
+        <h1 id="docTitle">保固切結書</h1>
+      </header>
+      <div class="meta-table" id="metaTable"></div>
+      <section class="statement"><p id="warrantyStatement"></p></section>
+      <section class="issuer">
+        <div class="issuer-lines" id="issuerLines"></div>
+        <div class="seals">
+          <div class="seal seal-main">楓根室內<br>裝修設計</div>
+          <div class="seal seal-sub" id="sealPerson">林榮祥</div>
+        </div>
+      </section>
+      <footer class="paper-date" id="rocDate"></footer>
     </section>
 
-    <section class="digital-grid">
+    <section class="digital-grid hidden" id="digitalGrid">
       <article class="card">
-        <h2>數位優化建議</h2>
-        <div class="list" id="enhancementList"></div>
+        <h2>案件摘要</h2>
+        <div class="list" id="summaryList"></div>
       </article>
-
       <article class="card">
         <h2>保固服務入口</h2>
-        <p id="serviceIntro"></p>
+        <p id="serviceIntro">可從 LINE 卡片或此頁面直接進入報修與聯絡流程。</p>
         <div class="action-row">
-          <a id="repairLink" class="btn btn-primary" href="https://example.com/repair-form" target="_blank" rel="noreferrer">報修申請</a>
-          <a id="contactLink" class="btn btn-secondary" href="tel:0900-000-000">客服聯絡</a>
+          <a id="repairLink" class="btn btn-primary" href="#">我要報修</a>
+          <a id="contactLink" class="btn btn-secondary" href="#">聯絡客服</a>
         </div>
       </article>
     </section>
 
-    <div class="footer-note" id="footerNote"></div>
+    <div class="footer-note hidden" id="footerNote"></div>
   </div>
 
+  <script src="api-config.js"></script>
   <script>
-    window.WARRANTY_BOOK = {
-      docTitle: "保固切結書",
-      statusText: "保固生效中",
-      fields: [
-        { label: "案件名稱", value: "楠梓 四季心 B7/6F" },
-        { label: "工程地點", value: "高雄市楠梓區右昌街 358 號 6 樓之 7" },
-        { label: "承攬範圍", value: "如契約書（報價單內容）" },
-        { label: "竣工日期", value: "115 年 06 月 13 日" },
-        { label: "結算金額", value: "新台幣 陸拾壹萬伍仟 元整（615,000 元）" },
-        { label: "驗收合格日期", value: "115 年 06 月 13 日", emphasize: true },
-        { label: "保固日期", value: "115 年 06 月 13 日至 116 年 06 月 12 日", emphasize: true }
-      ],
-      warrantyStatement: "上列工程自驗收合格之日起計算，在保固期內，如發生局部或全部損壞時，本公司願負完全修復責任（如遇天災及不可抗拒因素或人為之故意行為，則不再此限），並拋棄先訴抗辯權，僅此聲明。",
-      issuer: [
-        { label: "承攬廠商", value: "楓根室內裝修設計有限公司" },
-        { label: "負責人", value: "林 榮 祥" },
-        { label: "地址", value: "高雄市楠梓區清成街 31 號" }
-      ],
-      rocDate: ["中華民國", "115 年", "06 月", "13 日"],
-      serviceIntro: "保留正式切結書版面後，數位版可直接加入報修表單、客服聯繫、維修紀錄與附件索引，讓屋主不用翻紙本也能快速處理售後。",
-      enhancementList: [
-        {
-          title: "保留紙本正式感",
-          desc: "沿用原本的標題、欄位表格、切結聲明、廠商資料與用印位置，讓數位版看起來仍像正式文件。"
-        },
-        {
-          title: "把靜態欄位轉成可維護資料",
-          desc: "案件名稱、地址、保固日期、金額、承攬範圍可改為資料欄位，之後每案只換內容，不必重排版。"
-        },
-        {
-          title: "加入售後入口",
-          desc: "在不破壞主文件的前提下，附加報修按鈕、客服電話、LINE 或 Google 表單，這是紙本沒有但電子版最有價值的部分。"
-        },
-        {
-          title: "補上附件索引",
-          desc: "後續可再串接報價單、驗收照片、施工前後照片、材料型號與維修紀錄。"
+    const FIELDS = [
+      { label: '案件名稱', key: 'projectName' },
+      { label: '工程地點', key: 'address' },
+      { label: '承攬範圍', key: 'scope' },
+      { label: '竣工日期', key: 'completionDate' },
+      { label: '結算金額', key: 'amount' },
+      { label: '驗收合格日期', key: 'acceptanceDate', emphasize: true },
+      { label: '保固日期', key: 'warrantyRange', emphasize: true }
+    ];
+
+    function getQueryParam(name) {
+      return new URLSearchParams(location.search).get(name);
+    }
+
+    function getBaseUrl() {
+      if (window.APP_CONFIG && APP_CONFIG.publicBase) return APP_CONFIG.publicBase.replace(/\/$/, '');
+      return location.origin + location.pathname.replace(/\/[^/]*$/, '');
+    }
+
+    function readLocalCase(caseId) {
+      try {
+        const raw = localStorage.getItem('warranty_cases');
+        if (!raw) return null;
+        const cases = JSON.parse(raw);
+        return cases[caseId] || null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function loadJsonp(caseId) {
+      return new Promise((resolve, reject) => {
+        const apiBase = window.APP_CONFIG && APP_CONFIG.apiBase;
+        if (!apiBase) return reject(new Error('未設定 API')); 
+        const callbackName = '__warrantyCallback_' + Date.now();
+        const script = document.createElement('script');
+        window[callbackName] = (payload) => {
+          delete window[callbackName];
+          script.remove();
+          if (payload && payload.success && payload.warranty) resolve(payload.warranty);
+          else reject(new Error(payload && payload.message ? payload.message : 'API 無資料'));
+        };
+        script.onerror = () => {
+          delete window[callbackName];
+          script.remove();
+          reject(new Error('無法讀取 Apps Script 資料'));
+        };
+        script.src = apiBase + '?action=getWarranty&id=' + encodeURIComponent(caseId) + '&callback=' + callbackName;
+        document.body.appendChild(script);
+      });
+    }
+
+    async function loadFallbackSample() {
+      const response = await fetch('warranty-data.sample.json');
+      if (!response.ok) throw new Error('無法讀取樣板資料');
+      return response.json();
+    }
+
+    function toRocDateParts(dateText) {
+      const match = /^(\d+)\s*年\s*(\d+)\s*月\s*(\d+)\s*日$/.exec(dateText || '');
+      if (!match) return ['中華民國', '115 年', '06 月', '13 日'];
+      return ['中華民國', match[1] + ' 年', match[2].padStart(2, '0') + ' 月', match[3].padStart(2, '0') + ' 日'];
+    }
+
+    function makeWarrantyRange(data) {
+      return data.warrantyStart && data.warrantyEnd ? (data.warrantyStart + ' 至 ' + data.warrantyEnd) : (data.warrantyRange || '未設定');
+    }
+
+    function render(data, sourceLabel) {
+      const normalized = {
+        ...data,
+        warrantyRange: makeWarrantyRange(data),
+        issuer: data.issuer || {}
+      };
+      document.getElementById('subNote').textContent = sourceLabel;
+      document.getElementById('statusChip').textContent = normalized.statusText || '保固生效中';
+      document.getElementById('warrantyStatement').textContent = normalized.warrantyStatement || '';
+      document.getElementById('sealPerson').textContent = (normalized.issuer.responsiblePerson || '負責人').replace(/\s+/g, '');
+      document.getElementById('serviceIntro').textContent = normalized.notes || '此頁可從 LINE 卡片進入，並導向報修與客服聯絡。';
+      document.getElementById('footerNote').textContent = '案件編號：' + (normalized.caseId || '未設定') + '｜來源：' + sourceLabel;
+
+      const metaTable = document.getElementById('metaTable');
+      metaTable.innerHTML = FIELDS.map(field => {
+        const value = normalized[field.key] || '—';
+        return '<div class="meta-row"><div class="meta-label">' + field.label + '</div><div class="meta-value">' + (field.emphasize ? ('<strong>' + value + '</strong>') : value) + '</div></div>';
+      }).join('');
+
+      const issuerLines = document.getElementById('issuerLines');
+      issuerLines.innerHTML = [
+        ['承攬廠商', normalized.issuer.company || APP_CONFIG.companyName || '—'],
+        ['負責人', normalized.issuer.responsiblePerson || '—'],
+        ['地址', normalized.issuer.address || APP_CONFIG.companyAddress || '—']
+      ].map(item => '<div class="issuer-line"><strong>' + item[0] + '：</strong>' + item[1] + '</div>').join('');
+
+      const rocDate = document.getElementById('rocDate');
+      rocDate.innerHTML = toRocDateParts(normalized.acceptanceDate).map(item => '<span>' + item + '</span>').join('');
+
+      const summaryList = document.getElementById('summaryList');
+      summaryList.innerHTML = [
+        ['案件編號', normalized.caseId],
+        ['客戶名稱', normalized.customerName],
+        ['客戶電話', normalized.customerPhone],
+        ['保固到期', normalized.warrantyEnd]
+      ].map(item => '<div class="list-item"><strong>' + (item[0] || '') + '</strong><span>' + (item[1] || '—') + '</span></div>').join('');
+
+      const repairUrl = normalized.repairUrl || ('repair.html?id=' + encodeURIComponent(normalized.caseId || ''));
+      const contactUrl = normalized.contactUrl || ('tel:' + ((APP_CONFIG.companyPhone || '').replace(/[^\d+]/g, '')));
+      document.getElementById('repairLink').href = repairUrl;
+      document.getElementById('contactLink').href = contactUrl;
+
+      document.getElementById('loadingBox').classList.add('hidden');
+      document.getElementById('paperRoot').classList.remove('hidden');
+      document.getElementById('digitalGrid').classList.remove('hidden');
+      document.getElementById('footerNote').classList.remove('hidden');
+    }
+
+    function showError(message) {
+      document.getElementById('loadingBox').classList.add('hidden');
+      const box = document.getElementById('errorBox');
+      box.classList.remove('hidden');
+      box.textContent = message;
+    }
+
+    async function main() {
+      const caseId = getQueryParam('id');
+      try {
+        if (caseId) {
+          const local = readLocalCase(caseId);
+          if (local) return render(local, '本機管理頁草稿 / localStorage');
+          if (window.APP_CONFIG && APP_CONFIG.apiBase) {
+            const remote = await loadJsonp(caseId);
+            return render(remote, 'Apps Script / Google Sheet');
+          }
         }
-      ],
-      repairLink: { label: "報修申請", href: "#" },
-      contactLink: { label: "客服聯絡", href: "#" },
-      footerNote: "本頁已套入實際案件欄位資料。若要正式上線，下一步建議補上真實報修連結、客服方式、QR code、附件連結與電子簽章/印章圖檔。"
-    };
+        const sample = await loadFallbackSample();
+        render(sample, caseId ? '找不到案件，改顯示樣板資料' : '樣板資料預覽');
+      } catch (error) {
+        showError('載入失敗：' + error.message);
+      }
+    }
 
-    const cfg = window.WARRANTY_BOOK;
-
-    const setText = (id, value) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = value;
-    };
-
-    const renderFields = () => {
-      const root = document.getElementById('metaTable');
-      root.innerHTML = cfg.fields.map(item => `
-        <div class="meta-row">
-          <div class="meta-label">${item.label}</div>
-          <div class="meta-value">${item.emphasize ? `<strong>${item.value}</strong>` : item.value}</div>
-        </div>
-      `).join('');
-    };
-
-    const renderIssuer = () => {
-      const root = document.getElementById('issuerLines');
-      root.innerHTML = cfg.issuer.map(item => `
-        <div class="issuer-line"><strong>${item.label}：</strong>${item.value}</div>
-      `).join('');
-    };
-
-    const renderDate = () => {
-      const root = document.getElementById('rocDate');
-      root.innerHTML = cfg.rocDate.map(item => `<span>${item}</span>`).join('');
-    };
-
-    const renderEnhancements = () => {
-      const root = document.getElementById('enhancementList');
-      root.innerHTML = cfg.enhancementList.map(item => `
-        <div class="list-item">
-          <strong>${item.title}</strong>
-          <span>${item.desc}</span>
-        </div>
-      `).join('');
-    };
-
-    const setAction = (id, action) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.textContent = action.label;
-      el.href = action.href;
-    };
-
-    setText('docTitle', cfg.docTitle);
-    setText('statusChip', cfg.statusText);
-    setText('warrantyStatement', cfg.warrantyStatement);
-    setText('serviceIntro', cfg.serviceIntro);
-    setText('footerNote', cfg.footerNote);
-    renderFields();
-    renderIssuer();
-    renderDate();
-    renderEnhancements();
-    setAction('repairLink', cfg.repairLink);
-    setAction('contactLink', cfg.contactLink);
+    main();
   </script>
 </body>
 </html>

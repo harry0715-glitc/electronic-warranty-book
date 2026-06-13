@@ -1,6 +1,6 @@
 {
   "type": "flex",
-  "altText": "楓根室內裝修設計有限公司｜電子保固書",
+  "altText": "楠梓 四季心 B7/6F｜電子保固書",
   "contents": {
     "type": "bubble",
     "size": "mega",
@@ -18,21 +18,18 @@
         },
         {
           "type": "text",
-          "text": "楓根室內裝修設計有限公司",
-          "size": "sm",
-          "color": "#CFC6B5",
-          "wrap": true
-        },
-        {
-          "type": "separator",
-          "margin": "md"
+          "text": "楠梓 四季心 B7/6F",
+          "wrap": true,
+          "size": "md",
+          "color": "#F6ECD8",
+          "weight": "bold"
         },
         {
           "type": "text",
-          "text": "案件編號｜WG-2026-001\n保固期間｜2026.06.13 — 2027.06.12\n狀態｜生效中",
+          "text": "案件編號｜WG-2026-001\n保固期間｜115 年 06 月 13 日 至 116 年 06 月 12 日\n狀態｜保固生效中",
+          "wrap": true,
           "size": "sm",
-          "color": "#F6ECD8",
-          "wrap": true
+          "color": "#D2C7B6"
         }
       ],
       "backgroundColor": "#1A1614"
@@ -40,6 +37,7 @@
     "footer": {
       "type": "box",
       "layout": "vertical",
+      "spacing": "sm",
       "contents": [
         {
           "type": "button",
@@ -47,8 +45,17 @@
           "color": "#D4B071",
           "action": {
             "type": "uri",
-            "label": "開啟保固書",
-            "uri": "https://example.com/warranty-book"
+            "label": "查看完整保固書",
+            "uri": "https://example.com/index.html?id=WG-2026-001"
+          }
+        },
+        {
+          "type": "button",
+          "style": "secondary",
+          "action": {
+            "type": "uri",
+            "label": "我要報修",
+            "uri": "https://example.com/repair.html?id=WG-2026-001"
           }
         }
       ]
