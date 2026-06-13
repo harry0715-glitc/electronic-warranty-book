@@ -154,7 +154,7 @@
           responsiblePerson: form.issuerResponsiblePerson.value.trim(),
           address: form.issuerAddress.value.trim()
         },
-        repairUrl: `${baseUrl}/repair.html?id=${encodeURIComponent(caseId)}`,
+        repairUrl: (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || `${baseUrl}/repair.html?id=${encodeURIComponent(caseId)}`,
         warrantyUrl: `${baseUrl}/index.html?id=${encodeURIComponent(caseId)}`
       };
     }

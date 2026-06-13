@@ -43,7 +43,7 @@
 完整正式文件版電子保固書頁。
 
 下方只保留：
-- `我要報修`
+- `我要報修`（直接開 LINE 官方帳號）
 - `分享給 LINE 好友`
 
 ### `repair.html?id=CASE_ID`
@@ -56,6 +56,9 @@
 ### 若要真的直接送出 Flex 卡片
 需在 `api-config.js` 設定：
 - `liffId`
+
+目前已填入你提供的：
+- `2010316548-ci9nYsou`
 
 這樣在 LINE App 內開啟保固書頁時，就可以用 `liff.shareTargetPicker` 直接把 Flex 卡片分享給好友。
 

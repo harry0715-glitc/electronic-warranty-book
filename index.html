@@ -261,7 +261,7 @@
         issuer: data.issuer || {}
       };
       normalized.warrantyUrl = normalized.warrantyUrl || location.href;
-      normalized.repairUrl = normalized.repairUrl || ('repair.html?id=' + encodeURIComponent(normalized.caseId || ''));
+      normalized.repairUrl = normalized.repairUrl || (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || ('repair.html?id=' + encodeURIComponent(normalized.caseId || ''));
       currentRecord = normalized;
 
       document.getElementById('subNote').textContent = sourceLabel;
