@@ -3,6 +3,10 @@ const SHEET_NAMES = {
   LINE_CONTACTS: 'LineContacts'
 };
 
+const DEFAULT_PUBLIC_BASE = 'https://harry0715-glitc.github.io/electronic-warranty-book';
+const DEFAULT_REPAIR_URL = 'https://line.me/R/ti/p/@yhh1711p';
+const DEFAULT_ADMIN_SEND_PIN = '521527';
+
 const SCRIPT_PROPERTY_KEYS = {
   LINE_CHANNEL_ACCESS_TOKEN: 'LINE_CHANNEL_ACCESS_TOKEN',
   LINE_CHANNEL_SECRET: 'LINE_CHANNEL_SECRET',
@@ -140,6 +144,8 @@ function normalizeWarranty_(input) {
   const caseId = String(input.caseId || '').trim() || nextCaseId_();
   const warrantyStart = normalizeDateText_(input.warrantyStart);
   const warrantyEnd = normalizeDateText_(input.warrantyEnd);
+  const repairUrl = String(input.repairUrl || '').trim() || DEFAULT_REPAIR_URL;
+  const warrantyUrl = String(input.warrantyUrl || '').trim() || (DEFAULT_PUBLIC_BASE + '/index.html?id=' + encodeURIComponent(caseId));
   return {
     caseId: caseId,
     statusText: deriveStatusText_(warrantyStart, warrantyEnd),
@@ -157,8 +163,8 @@ function normalizeWarranty_(input) {
     issuerCompany: String((input.issuer && input.issuer.company) || '').trim(),
     issuerResponsiblePerson: String((input.issuer && input.issuer.responsiblePerson) || '').trim(),
     issuerAddress: String((input.issuer && input.issuer.address) || '').trim(),
-    repairUrl: String(input.repairUrl || '').trim(),
-    warrantyUrl: String(input.warrantyUrl || '').trim(),
+    repairUrl: repairUrl,
+    warrantyUrl: warrantyUrl,
     updatedAt: new Date().toISOString()
   };
 }
@@ -270,7 +276,6 @@ function searchWarrantyAddresses_(query) {
 function searchWarrantyRecords_(query) {
   const raw = String(query || '').trim();
   const target = normalizeKeyword_(raw);
-  if (!target) return { success: true, items: [] };
   const targetPhone = normalizePhone_(raw);
   const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
   const values = sheet.getDataRange().getValues();
@@ -279,21 +284,24 @@ function searchWarrantyRecords_(query) {
   const seen = {};
   const items = [];
 
-  for (var i = 1; i < values.length; i++) {
+  for (var i = values.length - 1; i >= 1; i--) {
     var warranty = rowToWarranty_(headers, values[i]);
-    var fields = [
-      warranty.caseId,
-      warranty.address,
-      warranty.customerName,
-      warranty.customerPhone,
-      warranty.projectName,
-      warranty.statusText
-    ];
-    var matched = fields.some(function(field) {
-      return normalizeKeyword_(field).indexOf(target) >= 0;
-    });
-    if (!matched && targetPhone) {
-      matched = normalizePhone_(warranty.customerPhone) === targetPhone || String(warranty.caseId || '').trim() === raw;
+    var matched = !target && !targetPhone;
+    if (!matched) {
+      var fields = [
+        warranty.caseId,
+        warranty.address,
+        warranty.customerName,
+        warranty.customerPhone,
+        warranty.projectName,
+        warranty.statusText
+      ];
+      matched = !!target && fields.some(function(field) {
+        return normalizeKeyword_(field).indexOf(target) >= 0;
+      });
+      if (!matched && targetPhone) {
+        matched = normalizePhone_(warranty.customerPhone) === targetPhone || String(warranty.caseId || '').trim() === raw;
+      }
     }
     if (!matched) continue;
     var key = String(warranty.caseId || '') + '|' + String(warranty.address || '');
@@ -716,8 +724,7 @@ function getLineConfigStatus_() {
 }
 
 function verifyAdminSendPin_(submittedPin) {
-  const configured = getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_ADMIN_SEND_PIN);
-  return !!configured && String(submittedPin || '').trim() === configured;
+  return String(submittedPin || '').trim() === DEFAULT_ADMIN_SEND_PIN;
 }
 
 function getLineProfileSafe_(userId) {

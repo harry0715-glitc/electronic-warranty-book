@@ -280,17 +280,25 @@
 
     async function main() {
       const caseId = getQueryParam('id');
+      const allowLocalDraft = getQueryParam('from') === 'admin' || getQueryParam('draft') === '1';
       try {
-        if (caseId) {
-          const local = readLocalCase(caseId);
-          if (local) return render(local, '本機管理頁草稿 / localStorage');
-          if (window.APP_CONFIG && APP_CONFIG.apiBase) {
+        if (caseId && window.APP_CONFIG && APP_CONFIG.apiBase) {
+          try {
             const remote = await loadJsonp(caseId);
             return render(remote, 'Apps Script / Google Sheet');
+          } catch (remoteError) {
+            if (!allowLocalDraft) throw remoteError;
           }
         }
+        if (caseId && allowLocalDraft) {
+          const local = readLocalCase(caseId);
+          if (local) return render(local, '本機管理頁草稿 / localStorage');
+        }
+        if (caseId) {
+          throw new Error('查無此案件資料');
+        }
         const sample = await loadFallbackSample();
-        render(sample, caseId ? '找不到案件，改顯示樣板資料' : '樣板資料預覽');
+        render(sample, '樣板資料預覽');
       } catch (error) {
         showError('載入失敗：' + error.message);
       }

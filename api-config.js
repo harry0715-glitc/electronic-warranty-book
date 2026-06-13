@@ -7,5 +7,6 @@ window.APP_CONFIG = {
   companyAddress: "高雄市楠梓區清成街 31 號",
   repairOfficialUrl: "https://line.me/R/ti/p/@yhh1711p",
   repairFormBase: "repair.html",
-  warrantyPageBase: "index.html"
+  warrantyPageBase: "index.html",
+  adminSendPin: "521527"
 };

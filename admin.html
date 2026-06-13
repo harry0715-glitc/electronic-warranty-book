@@ -22,6 +22,14 @@
     .quick-tools { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; margin-top:10px; align-items:end; }
     .quick-tools label { font-size:13px; color:var(--muted); }
     .quick-tools input { width:100%; }
+    .lookup-combo { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 48px; gap:8px; }
+    .lookup-combo input { padding-right:13px; }
+    .lookup-toggle { min-width:48px; padding:0; border:1px solid rgba(255,255,255,.08); background:#13110f; color:var(--ink); font-size:18px; }
+    .lookup-menu { position:absolute; left:0; right:56px; top:calc(100% + 8px); z-index:20; display:grid; gap:6px; padding:8px; border-radius:16px; background:#171311; border:1px solid var(--line); box-shadow:0 20px 50px rgba(0,0,0,.35); }
+    .lookup-option { width:100%; text-align:left; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.03); color:var(--ink); }
+    .lookup-option.active,.lookup-option:hover { background:rgba(209,176,122,.14); border-color:rgba(209,176,122,.28); }
+    .lookup-option strong { display:block; color:#ffe2a7; font-size:14px; margin-bottom:4px; }
+    .lookup-option span { display:block; color:var(--muted); font-size:12px; line-height:1.6; }
     .notice-list { margin:0; padding-left:1.2em; display:grid; gap:6px; color:#f2e3c4; }
     .panel { padding:18px; }
     .panel h2 { margin:0 0 14px; color:var(--gold); font-size:18px; }
@@ -56,9 +64,12 @@
 
       <div class="quick-tools">
         <div class="field-full">
-          <label for="lookupAddress">查詢既有保固書（輸入部分案件地址）</label>
-          <input id="lookupAddress" list="addressSuggestions" placeholder="例如：右昌街 358 號" autocomplete="off" />
-          <datalist id="addressSuggestions"></datalist>
+          <label for="lookupAddress">查詢既有保固書（可用案名、人名、地址搜尋）</label>
+          <div class="lookup-combo">
+            <input id="lookupAddress" placeholder="例如：四季心、王先生、右昌街 358 號" autocomplete="off" />
+            <button class="lookup-toggle" type="button" id="lookupToggleBtn" aria-label="展開查詢選單">▾</button>
+            <div class="lookup-menu hidden" id="lookupMenu"></div>
+          </div>
         </div>
         <button class="secondary" type="button" id="lookupBtn">查詢保固書</button>
       </div>
@@ -109,7 +120,7 @@
         <div class="small">LINE 綁定狀態（客戶需先加入 OA 並傳送手機號碼）</div>
         <div class="status" id="lineBindingStatus">尚未查詢</div>
         <div class="small">官方帳號發送碼</div>
-        <input id="lineSendPin" placeholder="輸入管理發送碼後送出資訊卡" />
+        <input id="lineSendPin" value="521527" placeholder="輸入管理發送碼後送出資訊卡" />
         <div class="actions">
           <button class="secondary" type="button" id="copyWarrantyLinkBtn">複製保固書連結</button>
           <button class="secondary" type="button" id="copyBindGuideBtn">複製綁定說明</button>
@@ -175,11 +186,11 @@
     }
 
     function buildBindingGuide(record) {
-      const phone = normalizePhone(record.customerPhone || '');
       const oaUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || '';
       return [
         oaUrl ? `請先加入官方 LINE：${oaUrl}` : '請先加入官方 LINE。',
-        `加入後，請傳送手機號碼：${phone || '（未提供手機號碼）'}`,
+        '加入後，請直接回傳您自己的手機號碼。',
+        '請回傳建立保固書時填寫的同一支手機號碼，例如：0912345678',
         '謝謝您。'
       ].filter(Boolean).join('\n');
     }
@@ -204,12 +215,14 @@
       const raw = String(query || '').trim();
       const normalized = normalizeKeyword(raw);
       const phone = normalizePhone(raw);
-      if (!normalized) return [];
       const seen = new Set();
       return Object.values(getCases())
+        .slice()
+        .reverse()
         .filter(item => {
+          if (!normalized && !phone) return true;
           const fields = [item?.caseId, item?.address, item?.customerName, item?.customerPhone, item?.projectName, item?.statusText];
-          const keywordMatch = fields.some(field => normalizeKeyword(field).includes(normalized));
+          const keywordMatch = normalized && fields.some(field => normalizeKeyword(field).includes(normalized));
           const phoneMatch = phone && normalizePhone(item?.customerPhone || '') === phone;
           return keywordMatch || phoneMatch;
         })
@@ -257,6 +270,17 @@
       const result = await loadJsonp(url);
       if (!result || !result.success || !result.warranty) return null;
       return result.warranty;
+    }
+
+    async function findRemoteCase(itemOrQuery) {
+      const raw = String(itemOrQuery || '').trim();
+      const item = typeof itemOrQuery === 'object' && itemOrQuery ? itemOrQuery : null;
+      if (item?.caseId && window.APP_CONFIG?.apiBase) {
+        const url = `${APP_CONFIG.apiBase}?action=getWarranty&id=${encodeURIComponent(item.caseId)}`;
+        const result = await loadJsonp(url);
+        if (result?.success && result.warranty) return result.warranty;
+      }
+      return await findRemoteCaseByAddress(item?.address || raw);
     }
 
     async function searchRemoteAddressSuggestions(query) {
@@ -321,21 +345,14 @@
       }
       const localMatches = searchLocalAddressSuggestions(raw);
       const remoteMatches = await searchRemoteAddressSuggestions(raw);
-      const merged = [];
-      const seen = new Set();
-      [...localMatches, ...remoteMatches].forEach(item => {
-        const key = `${item.caseId || ''}|${item.address || ''}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-        merged.push(item);
-      });
+      const merged = mergeSuggestionItems(localMatches, remoteMatches);
       const first = merged[0];
       if (!first) {
         alert('查無符合的案件');
         return;
       }
       const local = (first.caseId && getCases()[first.caseId]) || findLocalCaseByAddress(first.address || raw);
-      const matched = normalizeExistingRecord(local || await findRemoteCaseByAddress(first.address || raw));
+      const matched = normalizeExistingRecord(await findRemoteCase(first) || local);
       if (!matched || !matched.caseId) {
         alert('查無符合的案件');
         return;
@@ -344,6 +361,7 @@
       populateForm(matched);
       await showSaved(matched, '已載入既有案件');
       document.getElementById('statusBox').textContent = `已載入既有案件｜案件編號 ${matched.caseId}｜狀態 ${matched.statusText}`;
+      document.getElementById('lookupMenu').classList.add('hidden');
       document.getElementById('resultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -464,12 +482,11 @@
     }
 
     function buildRecord(form) {
-      const caseId = nextCaseId();
       const baseUrl = getBaseUrl();
       const warrantyStart = toIsoDate(form.warrantyStart.value);
       const warrantyEnd = toIsoDate(form.warrantyEnd.value);
       return {
-        caseId,
+        caseId: '',
         statusText: deriveStatusText(warrantyStart, warrantyEnd),
         projectName: form.projectName.value.trim(),
         customerName: form.customerName.value.trim(),
@@ -487,8 +504,8 @@
           responsiblePerson: form.issuerResponsiblePerson.value.trim(),
           address: form.issuerAddress.value.trim()
         },
-        repairUrl: (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || `${baseUrl}/repair.html?id=${encodeURIComponent(caseId)}`,
-        warrantyUrl: `${baseUrl}/index.html?id=${encodeURIComponent(caseId)}`
+        repairUrl: (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || `${baseUrl}/repair.html`,
+        warrantyUrl: ''
       };
     }
 
@@ -546,7 +563,7 @@
         box.textContent = `已綁定｜手機 ${bindingResult.phone}｜LINE ${bindingResult.displayName || '未命名'}｜${bindingResult.userIdMasked || ''}`;
         return;
       }
-      box.textContent = `未綁定｜請客戶先加入 OA 並傳送手機 ${normalizePhone(record.customerPhone || '') || '未提供'}`;
+      box.textContent = '未綁定｜請客戶先加入 OA 並回傳建立保固書時填寫的手機號碼';
     }
 
     async function refreshLineBindingStatus(record, notify = false) {
@@ -560,34 +577,53 @@
       return binding;
     }
 
-    function renderAddressSuggestions(items) {
-      const datalist = document.getElementById('addressSuggestions');
-      datalist.innerHTML = '';
-      (items || []).forEach(item => {
-        const option = document.createElement('option');
-        option.value = [item.customerName || '', item.projectName || '', item.address || '', item.caseId || ''].filter(Boolean).join('｜');
-        option.label = [item.customerPhone || '', item.statusText || ''].filter(Boolean).join('｜');
-        datalist.appendChild(option);
-      });
-    }
+    let currentLookupSuggestions = [];
+    let activeLookupIndex = -1;
 
-    let suggestionTimer = null;
-    async function updateAddressSuggestions(query) {
-      const raw = String(query || '').trim();
-      if (raw.length < 2) {
-        renderAddressSuggestions([]);
-        return;
-      }
-      const local = searchLocalAddressSuggestions(raw);
-      const remote = await searchRemoteAddressSuggestions(raw);
+    function mergeSuggestionItems(localItems, remoteItems) {
       const seen = new Set();
-      const merged = [...local, ...remote].filter(item => {
+      return [...(localItems || []), ...(remoteItems || [])].filter(item => {
         const key = `${item.caseId || ''}|${item.address || ''}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       }).slice(0, 8);
-      renderAddressSuggestions(merged);
+    }
+
+    function formatLookupLabel(item) {
+      return [item.projectName || '', item.customerName || '', item.address || ''].filter(Boolean).join('｜');
+    }
+
+    function renderAddressSuggestions(items) {
+      currentLookupSuggestions = items || [];
+      const menu = document.getElementById('lookupMenu');
+      menu.innerHTML = '';
+      activeLookupIndex = -1;
+      if (!currentLookupSuggestions.length) {
+        menu.classList.add('hidden');
+        return;
+      }
+      currentLookupSuggestions.forEach((item, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'lookup-option';
+        button.innerHTML = `<strong>${formatLookupLabel(item) || '未命名案件'}</strong><span>${[item.caseId || '', item.customerPhone || '', item.statusText || ''].filter(Boolean).join('｜')}</span>`;
+        button.addEventListener('click', async () => {
+          activeLookupIndex = index;
+          document.getElementById('lookupAddress').value = formatLookupLabel(item);
+          menu.classList.add('hidden');
+          await openCaseByAddress(item.caseId || item.address || item.customerName || '');
+        });
+        menu.appendChild(button);
+      });
+      menu.classList.remove('hidden');
+    }
+
+    async function updateAddressSuggestions(query) {
+      const raw = String(query || '').trim();
+      const local = searchLocalAddressSuggestions(raw);
+      const remote = await searchRemoteAddressSuggestions(raw);
+      renderAddressSuggestions(mergeSuggestionItems(local, remote));
     }
 
     async function showSaved(record, modeText) {
@@ -668,13 +704,55 @@
 
     const form = document.getElementById('warrantyForm');
     const lookupInput = document.getElementById('lookupAddress');
+    const lookupToggleBtn = document.getElementById('lookupToggleBtn');
+    const lookupMenu = document.getElementById('lookupMenu');
     const amountInput = form.elements.amount;
+    let suggestionTimer = null;
 
     lookupInput.addEventListener('input', () => {
       clearTimeout(suggestionTimer);
       suggestionTimer = setTimeout(() => {
         updateAddressSuggestions(lookupInput.value).catch(() => {});
       }, 180);
+    });
+
+    lookupInput.addEventListener('focus', () => {
+      updateAddressSuggestions(lookupInput.value).catch(() => {});
+    });
+
+    lookupToggleBtn.addEventListener('click', async () => {
+      if (!lookupMenu.classList.contains('hidden')) {
+        lookupMenu.classList.add('hidden');
+        return;
+      }
+      await updateAddressSuggestions(lookupInput.value);
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('.lookup-combo')) lookupMenu.classList.add('hidden');
+    });
+
+    lookupInput.addEventListener('keydown', async (event) => {
+      if (event.key === 'ArrowDown' && currentLookupSuggestions.length) {
+        event.preventDefault();
+        activeLookupIndex = Math.min(activeLookupIndex + 1, currentLookupSuggestions.length - 1);
+        [...lookupMenu.querySelectorAll('.lookup-option')].forEach((node, index) => node.classList.toggle('active', index === activeLookupIndex));
+        return;
+      }
+      if (event.key === 'ArrowUp' && currentLookupSuggestions.length) {
+        event.preventDefault();
+        activeLookupIndex = Math.max(activeLookupIndex - 1, 0);
+        [...lookupMenu.querySelectorAll('.lookup-option')].forEach((node, index) => node.classList.toggle('active', index === activeLookupIndex));
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        if (activeLookupIndex >= 0 && currentLookupSuggestions[activeLookupIndex]) {
+          await openCaseByAddress(currentLookupSuggestions[activeLookupIndex].caseId || currentLookupSuggestions[activeLookupIndex].address || lookupInput.value);
+          return;
+        }
+        await openCaseByAddress(lookupInput.value);
+      }
     });
 
     amountInput.addEventListener('blur', () => {
@@ -692,40 +770,37 @@
       await openCaseByAddress(lookupInput.value);
     });
 
-    lookupInput.addEventListener('keydown', async (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        await openCaseByAddress(lookupInput.value);
-      }
-    });
-
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const record = buildRecord(form);
-      if (!confirmCreate(record, 'create')) return;
-      saveRecord(record);
-      await showSaved(record, '已建立案件');
-      const apiResult = await pushToApi(record);
-      if (!apiResult || !apiResult.success) {
+      const draft = buildRecord(form);
+      if (!confirmCreate(draft, 'create')) return;
+      document.getElementById('statusBox').textContent = '建立中｜等待後端產生案件編號';
+      document.getElementById('resultPanel').classList.remove('hidden');
+      const apiResult = await pushToApi(draft);
+      if (!apiResult || !apiResult.success || !apiResult.warranty) {
         alert(apiResult?.message || '案件寫入後端失敗');
-        document.getElementById('statusBox').textContent = `後端寫入失敗｜案件編號 ${record.caseId}`;
+        document.getElementById('statusBox').textContent = '後端寫入失敗';
         return;
       }
-      document.getElementById('statusBox').textContent = `已建立案件並寫入後端｜案件編號 ${record.caseId}｜狀態 ${record.statusText}`;
+      const record = normalizeExistingRecord(apiResult.warranty);
+      saveRecord(record);
+      await showSaved(record, '已建立案件並寫入後端');
     });
 
     document.getElementById('saveOnlyBtn').addEventListener('click', async () => {
-      const record = buildRecord(form);
-      if (!confirmCreate(record, 'save')) return;
-      saveRecord(record);
-      await showSaved(record, '已儲存草稿');
-      const apiResult = await pushToApi(record);
-      if (!apiResult || !apiResult.success) {
+      const draft = buildRecord(form);
+      if (!confirmCreate(draft, 'save')) return;
+      document.getElementById('statusBox').textContent = '儲存中｜等待後端產生案件編號';
+      document.getElementById('resultPanel').classList.remove('hidden');
+      const apiResult = await pushToApi(draft);
+      if (!apiResult || !apiResult.success || !apiResult.warranty) {
         alert(apiResult?.message || '草稿寫入後端失敗');
-        document.getElementById('statusBox').textContent = `草稿寫入失敗｜案件編號 ${record.caseId}`;
+        document.getElementById('statusBox').textContent = '草稿寫入失敗';
         return;
       }
-      document.getElementById('statusBox').textContent = `已儲存草稿並寫入後端｜案件編號 ${record.caseId}｜狀態 ${record.statusText}`;
+      const record = normalizeExistingRecord(apiResult.warranty);
+      saveRecord(record);
+      await showSaved(record, '已儲存草稿並寫入後端');
     });
   </script>
 </body>
