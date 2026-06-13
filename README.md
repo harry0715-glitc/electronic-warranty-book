@@ -58,7 +58,7 @@
 - `liffId`
 
 目前已填入你提供的：
-- `2010316548-ci9nYsou`
+- `2010316548-KZgCnSKp`
 
 這樣在 LINE App 內開啟保固書頁時，就可以用 `liff.shareTargetPicker` 直接把 Flex 卡片分享給好友。
 
