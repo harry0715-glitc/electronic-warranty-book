@@ -1,5 +1,14 @@
 const SHEET_NAMES = {
-  WARRANTIES: 'Warranties'
+  WARRANTIES: 'Warranties',
+  LINE_CONTACTS: 'LineContacts'
+};
+
+const SCRIPT_PROPERTY_KEYS = {
+  LINE_CHANNEL_ACCESS_TOKEN: 'LINE_CHANNEL_ACCESS_TOKEN',
+  LINE_CHANNEL_SECRET: 'LINE_CHANNEL_SECRET',
+  LINE_WEBHOOK_KEY: 'LINE_WEBHOOK_KEY',
+  LINE_LIFF_ID: 'LINE_LIFF_ID',
+  LINE_ADMIN_SEND_PIN: 'LINE_ADMIN_SEND_PIN'
 };
 
 function doGet(e) {
@@ -12,6 +21,16 @@ function doGet(e) {
 
   if (action === 'findWarrantyByAddress') {
     const result = getWarrantyByAddress_(e.parameter.address || '');
+    return output_(result, e.parameter.callback);
+  }
+
+  if (action === 'getLineBindingByPhone') {
+    const result = getLineBindingByPhone_(e.parameter.phone || '');
+    return output_(result, e.parameter.callback);
+  }
+
+  if (action === 'sendWarrantyCard') {
+    const result = sendWarrantyCardByPhone_(e.parameter.phone || '', e.parameter.caseId || '', e.parameter.pin || '');
     return output_(result, e.parameter.callback);
   }
 
@@ -31,7 +50,8 @@ function doGet(e) {
       service: 'warranty-apps-script',
       time: new Date().toISOString(),
       spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
-      spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl()
+      spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
+      lineConfigured: getLineConfigStatus_()
     }, e.parameter.callback);
   }
 
@@ -41,7 +61,11 @@ function doGet(e) {
 function doPost(e) {
   try {
     const payload = parsePayload_(e);
-    const action = payload.action || '';
+    const action = payload.action || (e && e.parameter && e.parameter.action) || '';
+
+    if (payload && payload.events && Array.isArray(payload.events)) {
+      return handleLineWebhook_(payload, e);
+    }
 
     if (action === 'createWarranty') {
       const warranty = normalizeWarranty_(extractWarrantyInput_(payload.warranty || payload));
@@ -94,8 +118,8 @@ function extractWarrantyInput_(input) {
 
 function normalizeWarranty_(input) {
   const caseId = String(input.caseId || '').trim() || nextCaseId_();
-  const warrantyStart = String(input.warrantyStart || '').trim();
-  const warrantyEnd = String(input.warrantyEnd || '').trim();
+  const warrantyStart = normalizeDateText_(input.warrantyStart);
+  const warrantyEnd = normalizeDateText_(input.warrantyEnd);
   return {
     caseId: caseId,
     statusText: deriveStatusText_(warrantyStart, warrantyEnd),
@@ -104,9 +128,9 @@ function normalizeWarranty_(input) {
     customerPhone: String(input.customerPhone || '').trim(),
     address: String(input.address || '').trim(),
     scope: String(input.scope || '').trim(),
-    completionDate: String(input.completionDate || '').trim(),
+    completionDate: normalizeDateText_(input.completionDate),
     amount: String(input.amount || '').trim(),
-    acceptanceDate: String(input.acceptanceDate || '').trim(),
+    acceptanceDate: normalizeDateText_(input.acceptanceDate),
     warrantyStart: warrantyStart,
     warrantyEnd: warrantyEnd,
     warrantyStatement: String(input.warrantyStatement || '').trim(),
@@ -117,6 +141,14 @@ function normalizeWarranty_(input) {
     warrantyUrl: String(input.warrantyUrl || '').trim(),
     updatedAt: new Date().toISOString()
   };
+}
+
+function normalizeDateText_(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (match) return match[1] + '-' + match[2] + '-' + match[3];
+  return raw;
 }
 
 function nextCaseId_() {
@@ -235,11 +267,11 @@ function rowToWarranty_(headers, row) {
     customerPhone: obj.customerPhone,
     address: obj.address,
     scope: obj.scope,
-    completionDate: obj.completionDate,
+    completionDate: normalizeDateText_(obj.completionDate),
     amount: obj.amount,
-    acceptanceDate: obj.acceptanceDate,
-    warrantyStart: obj.warrantyStart,
-    warrantyEnd: obj.warrantyEnd,
+    acceptanceDate: normalizeDateText_(obj.acceptanceDate),
+    warrantyStart: normalizeDateText_(obj.warrantyStart),
+    warrantyEnd: normalizeDateText_(obj.warrantyEnd),
     warrantyStatement: obj.warrantyStatement,
     issuer: {
       company: obj.issuerCompany,
@@ -251,13 +283,412 @@ function rowToWarranty_(headers, row) {
   };
 }
 
+function normalizePhone_(value) {
+  let digits = String(value || '').replace(/\D+/g, '');
+  if (!digits) return '';
+  if (digits.indexOf('886') === 0) digits = '0' + digits.slice(3);
+  if (digits.length === 9 && digits.indexOf('9') === 0) digits = '0' + digits;
+  return digits;
+}
+
+function looksLikePhoneBindingText_(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return false;
+  if (!/^[\d\s+()\-]+$/.test(raw)) return false;
+  const phone = normalizePhone_(raw);
+  return phone.length >= 8 && phone.length <= 12;
+}
+
+function getLineContactHeaders_() {
+  return ['normalizedPhone', 'rawPhone', 'userId', 'displayName', 'pictureUrl', 'statusMessage', 'lastMessageText', 'lastBoundAt', 'updatedAt'];
+}
+
+function getLineBindingByPhone_(phone) {
+  const normalizedPhone = normalizePhone_(phone);
+  if (!normalizedPhone) return { success: false, bound: false, message: 'phone is required' };
+  const contact = findLineContactByPhone_(normalizedPhone);
+  if (!contact) {
+    return {
+      success: true,
+      bound: false,
+      phone: normalizedPhone,
+      message: 'No LINE binding found for this phone'
+    };
+  }
+  return {
+    success: true,
+    bound: true,
+    phone: contact.normalizedPhone,
+    displayName: contact.displayName,
+    userIdMasked: maskUserId_(contact.userId),
+    updatedAt: contact.updatedAt,
+    lastBoundAt: contact.lastBoundAt
+  };
+}
+
+function findLineContactByPhone_(normalizedPhone) {
+  const sheet = getOrCreateSheet_(SHEET_NAMES.LINE_CONTACTS, getLineContactHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return null;
+  const headers = values[0];
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0]).trim() === String(normalizedPhone).trim()) {
+      return rowToObject_(headers, values[i]);
+    }
+  }
+  return null;
+}
+
+function upsertLineContact_(contact) {
+  const sheet = getOrCreateSheet_(SHEET_NAMES.LINE_CONTACTS, getLineContactHeaders_());
+  const values = sheet.getDataRange().getValues();
+  const row = [
+    contact.normalizedPhone || '',
+    contact.rawPhone || '',
+    contact.userId || '',
+    contact.displayName || '',
+    contact.pictureUrl || '',
+    contact.statusMessage || '',
+    contact.lastMessageText || '',
+    contact.lastBoundAt || '',
+    contact.updatedAt || ''
+  ];
+
+  for (var i = 1; i < values.length; i++) {
+    const samePhone = String(values[i][0]).trim() === String(contact.normalizedPhone || '').trim();
+    const sameUser = contact.userId && String(values[i][2]).trim() === String(contact.userId).trim();
+    if (samePhone || sameUser) {
+      sheet.getRange(i + 1, 1, 1, row.length).setValues([row]);
+      return;
+    }
+  }
+  sheet.appendRow(row);
+}
+
+function rowToObject_(headers, row) {
+  const obj = {};
+  headers.forEach(function(header, index) {
+    obj[header] = row[index];
+  });
+  return obj;
+}
+
+function maskUserId_(userId) {
+  const text = String(userId || '');
+  if (text.length <= 10) return text;
+  return text.slice(0, 6) + '...' + text.slice(-4);
+}
+
+function handleLineWebhook_(payload, e) {
+  const configuredKey = getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_WEBHOOK_KEY);
+  const incomingKey = e && e.parameter ? String(e.parameter.key || '') : '';
+  if (configuredKey && incomingKey !== configuredKey) {
+    return output_({ success: false, message: 'Invalid webhook key' });
+  }
+
+  const events = payload.events || [];
+  events.forEach(function(event) {
+    try {
+      handleLineEvent_(event);
+    } catch (error) {
+      console.error('handleLineEvent_ failed', error);
+    }
+  });
+
+  return output_({ success: true, handledEvents: events.length });
+}
+
+function handleLineEvent_(event) {
+  const userId = event && event.source ? String(event.source.userId || '') : '';
+  if (!userId) return;
+
+  if (event.type === 'follow') {
+    if (event.replyToken) {
+      replyLineMessages_(event.replyToken, [{ type: 'text', text: '您好，請直接回傳您的手機號碼，以完成保固通知綁定。\n例如：0912345678' }]);
+    }
+    return;
+  }
+
+  if (event.type === 'message' && event.message && event.message.type === 'text') {
+    const rawText = String(event.message.text || '').trim();
+    if (!looksLikePhoneBindingText_(rawText)) {
+      if (event.replyToken) {
+        replyLineMessages_(event.replyToken, [{ type: 'text', text: '請直接回傳您建立保固書時填寫的手機號碼，例如：0912345678' }]);
+      }
+      return;
+    }
+
+    const normalizedPhone = normalizePhone_(rawText);
+    const profile = getLineProfileSafe_(userId);
+    const now = new Date().toISOString();
+    upsertLineContact_({
+      normalizedPhone: normalizedPhone,
+      rawPhone: rawText,
+      userId: userId,
+      displayName: profile.displayName || '',
+      pictureUrl: profile.pictureUrl || '',
+      statusMessage: profile.statusMessage || '',
+      lastMessageText: rawText,
+      lastBoundAt: now,
+      updatedAt: now
+    });
+
+    if (event.replyToken) {
+      const name = profile.displayName ? ('『' + profile.displayName + '』') : '您';
+      replyLineMessages_(event.replyToken, [{ type: 'text', text: name + ' 已完成綁定手機 ' + normalizedPhone + '。\n之後管理者可直接透過官方帳號發送保固資訊卡給您。' }]);
+    }
+  }
+}
+
+function sendWarrantyCardByPhone_(phone, caseId, pin) {
+  if (!verifyAdminSendPin_(pin)) {
+    return { success: false, message: '發送碼錯誤' };
+  }
+
+  const binding = getLineBindingByPhone_(phone);
+  if (!binding.success || !binding.bound) {
+    return { success: false, message: '此手機尚未完成 LINE 綁定' };
+  }
+
+  const contact = findLineContactByPhone_(binding.phone);
+  if (!contact || !contact.userId) {
+    return { success: false, message: '找不到綁定的 LINE userId' };
+  }
+
+  const warrantyResult = getWarrantyById_(caseId);
+  if (!warrantyResult.success || !warrantyResult.warranty) {
+    return { success: false, message: '查無此案件' };
+  }
+
+  const message = buildWarrantyFlexMessage_(warrantyResult.warranty);
+  const response = pushLineMessages_(contact.userId, [message]);
+  return {
+    success: true,
+    message: '已送出保固資訊卡',
+    phone: binding.phone,
+    displayName: binding.displayName || '',
+    caseId: caseId,
+    lineResponse: response
+  };
+}
+
+function buildWarrantyFlexMessage_(warranty) {
+  const companyName = warranty.issuer && warranty.issuer.company ? warranty.issuer.company : '電子保固書';
+  const liffUrl = getWarrantyLiffUrl_(warranty);
+  const warrantyUrl = warranty.warrantyUrl || liffUrl || '';
+  const repairUrl = warranty.repairUrl || warrantyUrl;
+  const statusColor = getStatusColor_(warranty.statusText);
+
+  return {
+    type: 'flex',
+    altText: companyName + '｜' + warranty.caseId + ' 電子保固書',
+    contents: {
+      type: 'bubble',
+      size: 'mega',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#1f2937',
+        paddingAll: '16px',
+        contents: [
+          { type: 'text', text: companyName, color: '#ffffff', weight: 'bold', size: 'md', wrap: true },
+          { type: 'text', text: '電子保固書', color: '#d1d5db', size: 'sm', margin: 'sm' }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        contents: [
+          { type: 'text', text: warranty.customerName || '未提供客戶名稱', weight: 'bold', size: 'xl', wrap: true },
+          { type: 'text', text: warranty.projectName || '未提供案件名稱', size: 'sm', color: '#6b7280', wrap: true },
+          {
+            type: 'box',
+            layout: 'baseline',
+            spacing: 'sm',
+            contents: [
+              { type: 'text', text: '案件編號', size: 'sm', color: '#6b7280', flex: 3 },
+              { type: 'text', text: warranty.caseId || '未提供', size: 'sm', color: '#111827', flex: 7, wrap: true }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'baseline',
+            spacing: 'sm',
+            contents: [
+              { type: 'text', text: '保固期間', size: 'sm', color: '#6b7280', flex: 3 },
+              { type: 'text', text: buildWarrantyPeriodText_(warranty), size: 'sm', color: '#111827', flex: 7, wrap: true }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'baseline',
+            spacing: 'sm',
+            contents: [
+              { type: 'text', text: '保固狀態', size: 'sm', color: '#6b7280', flex: 3 },
+              { type: 'text', text: warranty.statusText || '未提供', size: 'sm', color: statusColor, weight: 'bold', flex: 7, wrap: true }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'baseline',
+            spacing: 'sm',
+            contents: [
+              { type: 'text', text: '工程地點', size: 'sm', color: '#6b7280', flex: 3 },
+              { type: 'text', text: warranty.address || '未提供', size: 'sm', color: '#111827', flex: 7, wrap: true }
+            ]
+          }
+        ]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: [
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#111827',
+            action: {
+              type: 'uri',
+              label: '查看完整保固書',
+              uri: liffUrl || warrantyUrl
+            }
+          },
+          {
+            type: 'button',
+            style: 'secondary',
+            action: {
+              type: 'uri',
+              label: '我要報修',
+              uri: repairUrl
+            }
+          }
+        ]
+      }
+    }
+  };
+}
+
+function buildWarrantyPeriodText_(warranty) {
+  return normalizeDateText_(warranty.warrantyStart) + ' 至 ' + normalizeDateText_(warranty.warrantyEnd);
+}
+
+function getStatusColor_(statusText) {
+  const status = String(statusText || '');
+  if (status === '保固生效中') return '#16a34a';
+  if (status === '已過保') return '#dc2626';
+  return '#ca8a04';
+}
+
+function getWarrantyLiffUrl_(warranty) {
+  const liffId = getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_LIFF_ID);
+  if (!liffId || !warranty || !warranty.caseId) return '';
+  return 'https://liff.line.me/' + encodeURIComponent(liffId) + '?id=' + encodeURIComponent(warranty.caseId);
+}
+
+function getLineConfigStatus_() {
+  return {
+    hasAccessToken: !!getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_CHANNEL_ACCESS_TOKEN),
+    hasChannelSecret: !!getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_CHANNEL_SECRET),
+    hasWebhookKey: !!getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_WEBHOOK_KEY),
+    hasLiffId: !!getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_LIFF_ID),
+    hasAdminSendPin: !!getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_ADMIN_SEND_PIN)
+  };
+}
+
+function verifyAdminSendPin_(submittedPin) {
+  const configured = getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_ADMIN_SEND_PIN);
+  return !!configured && String(submittedPin || '').trim() === configured;
+}
+
+function getLineProfileSafe_(userId) {
+  try {
+    return fetchLineProfile_(userId);
+  } catch (error) {
+    console.warn('fetchLineProfile_ failed', error);
+    return {};
+  }
+}
+
+function fetchLineProfile_(userId) {
+  ensureLineAccessToken_();
+  const url = 'https://api.line.me/v2/bot/profile/' + encodeURIComponent(userId);
+  const response = UrlFetchApp.fetch(url, {
+    method: 'get',
+    headers: buildLineAuthHeaders_(),
+    muteHttpExceptions: true
+  });
+  return parseLineApiResponse_(response);
+}
+
+function replyLineMessages_(replyToken, messages) {
+  return callLineMessagingApi_('https://api.line.me/v2/bot/message/reply', {
+    replyToken: replyToken,
+    messages: messages
+  });
+}
+
+function pushLineMessages_(userId, messages) {
+  return callLineMessagingApi_('https://api.line.me/v2/bot/message/push', {
+    to: userId,
+    messages: messages
+  });
+}
+
+function callLineMessagingApi_(url, payload) {
+  ensureLineAccessToken_();
+  const response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json; charset=UTF-8',
+    headers: buildLineAuthHeaders_(),
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+  return parseLineApiResponse_(response);
+}
+
+function parseLineApiResponse_(response) {
+  const statusCode = response.getResponseCode();
+  const text = response.getContentText() || '';
+  let parsed = {};
+  if (text) {
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      parsed = { raw: text };
+    }
+  }
+  if (statusCode >= 200 && statusCode < 300) {
+    return { ok: true, statusCode: statusCode, body: parsed };
+  }
+  throw new Error('LINE API error ' + statusCode + ': ' + text);
+}
+
+function buildLineAuthHeaders_() {
+  const token = getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_CHANNEL_ACCESS_TOKEN);
+  return { Authorization: 'Bearer ' + token };
+}
+
+function ensureLineAccessToken_() {
+  const token = getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_CHANNEL_ACCESS_TOKEN);
+  if (!token) throw new Error('LINE channel access token is not configured');
+}
+
+function getScriptProperty_(key) {
+  return PropertiesService.getScriptProperties().getProperty(key) || '';
+}
+
 function setupWarrantyDatabase() {
   const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
+  const lineSheet = getOrCreateSheet_(SHEET_NAMES.LINE_CONTACTS, getLineContactHeaders_());
   return {
     spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
     spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
-    sheetName: sheet.getName(),
-    headerCount: warrantyHeaders_().length,
+    warrantySheetName: sheet.getName(),
+    lineContactSheetName: lineSheet.getName(),
+    warrantyHeaderCount: warrantyHeaders_().length,
+    lineContactHeaderCount: getLineContactHeaders_().length,
     lastRow: sheet.getLastRow()
   };
 }
@@ -272,6 +703,18 @@ function getOrCreateSheet_(name, headers) {
   }
   if (sheet.getLastRow() === 0) sheet.appendRow(headers);
   return sheet;
+}
+
+function setLineConfigForSetup(token, secret, webhookKey, liffId, adminSendPin) {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperties({
+    LINE_CHANNEL_ACCESS_TOKEN: String(token || '').trim(),
+    LINE_CHANNEL_SECRET: String(secret || '').trim(),
+    LINE_WEBHOOK_KEY: String(webhookKey || '').trim(),
+    LINE_LIFF_ID: String(liffId || '').trim(),
+    LINE_ADMIN_SEND_PIN: String(adminSendPin || '').trim()
+  }, true);
+  return getLineConfigStatus_();
 }
 
 function output_(data, callback) {

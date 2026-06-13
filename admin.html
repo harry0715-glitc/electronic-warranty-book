@@ -105,10 +105,17 @@
         <div class="status"><a id="liffLink" href="#" target="_blank" style="color:#ffe2a7;word-break:break-all;">尚未建立</a></div>
         <div class="small">分享文案（可直接複製後貼到 LINE）</div>
         <textarea id="shareMessage" readonly style="min-height:150px;"></textarea>
+        <div class="small">LINE 綁定狀態（客戶需先加入 OA 並傳送手機號碼）</div>
+        <div class="status" id="lineBindingStatus">尚未查詢</div>
+        <div class="small">官方帳號發送碼</div>
+        <input id="lineSendPin" placeholder="輸入管理發送碼後送出資訊卡" />
         <div class="actions">
           <button class="secondary" type="button" id="copyWarrantyLinkBtn">複製保固書連結</button>
           <button class="secondary" type="button" id="copyLiffLinkBtn">複製 LIFF 連結</button>
-          <button class="primary" type="button" id="copyShareMessageBtn">複製分享文案</button>
+          <button class="secondary" type="button" id="copyShareMessageBtn">複製分享文案</button>
+          <button class="secondary" type="button" id="copyBindGuideBtn">複製綁定說明</button>
+          <button class="secondary" type="button" id="refreshBindingBtn">更新綁定狀態</button>
+          <button class="primary" type="button" id="sendWarrantyCardBtn">官方帳號送出資訊卡</button>
         </div>
       </div>
     </section>
@@ -145,6 +152,24 @@
         `LINE 入口：${liffUrl || record.warrantyUrl}`,
         `網頁版：${record.warrantyUrl}`
       ].join('\n');
+    }
+
+    function normalizePhone(value) {
+      let digits = String(value || '').replace(/\D+/g, '');
+      if (!digits) return '';
+      if (digits.startsWith('886')) digits = `0${digits.slice(3)}`;
+      if (digits.length === 9 && digits.startsWith('9')) digits = `0${digits}`;
+      return digits;
+    }
+
+    function buildBindingGuide(record) {
+      const phone = normalizePhone(record.customerPhone || '');
+      const oaUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || '';
+      return [
+        '請先加入楓根官方帳號，並傳送以下手機號碼完成綁定：',
+        phone || '（未提供手機號碼）',
+        oaUrl ? `官方帳號：${oaUrl}` : ''
+      ].filter(Boolean).join('\n');
     }
 
     function normalizeAddress(value) {
@@ -360,7 +385,46 @@
       return record;
     }
 
-    function showSaved(record, modeText) {
+    async function fetchLineBindingByPhone(phone) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return null;
+      const normalized = normalizePhone(phone);
+      if (!normalized) return { success: false, bound: false, message: '缺少手機號碼' };
+      const url = `${APP_CONFIG.apiBase}?action=getLineBindingByPhone&phone=${encodeURIComponent(normalized)}`;
+      return await loadJsonp(url);
+    }
+
+    async function sendWarrantyCardViaApi(record, pin) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) throw new Error('未設定 API');
+      const normalized = normalizePhone(record.customerPhone || '');
+      const url = `${APP_CONFIG.apiBase}?action=sendWarrantyCard&phone=${encodeURIComponent(normalized)}&caseId=${encodeURIComponent(record.caseId || '')}&pin=${encodeURIComponent(pin || '')}`;
+      return await loadJsonp(url);
+    }
+
+    function renderLineBindingStatus(bindingResult, record) {
+      const box = document.getElementById('lineBindingStatus');
+      if (!bindingResult || bindingResult.success === false) {
+        box.textContent = `查詢失敗｜${bindingResult?.message || '未知錯誤'}`;
+        return;
+      }
+      if (bindingResult.bound) {
+        box.textContent = `已綁定｜手機 ${bindingResult.phone}｜LINE ${bindingResult.displayName || '未命名'}｜${bindingResult.userIdMasked || ''}`;
+        return;
+      }
+      box.textContent = `未綁定｜請客戶先加入 OA 並傳送手機 ${normalizePhone(record.customerPhone || '') || '未提供'}`;
+    }
+
+    async function refreshLineBindingStatus(record, notify = false) {
+      const binding = await fetchLineBindingByPhone(record.customerPhone || '');
+      renderLineBindingStatus(binding, record);
+      if (notify) {
+        document.getElementById('statusBox').textContent = binding?.bound
+          ? `已更新 LINE 綁定狀態｜案件編號 ${record.caseId}`
+          : `此手機尚未完成 LINE 綁定｜案件編號 ${record.caseId}`;
+      }
+      return binding;
+    }
+
+    async function showSaved(record, modeText) {
       document.getElementById('resultPanel').classList.remove('hidden');
       document.getElementById('statusBox').textContent = `${modeText}｜案件編號 ${record.caseId}｜狀態 ${record.statusText}`;
 
@@ -386,6 +450,35 @@
         await copyText(buildShareMessage(record));
         document.getElementById('statusBox').textContent = `已複製分享文案｜案件編號 ${record.caseId}`;
       };
+      document.getElementById('copyBindGuideBtn').onclick = async () => {
+        await copyText(buildBindingGuide(record));
+        document.getElementById('statusBox').textContent = `已複製綁定說明｜案件編號 ${record.caseId}`;
+      };
+      document.getElementById('refreshBindingBtn').onclick = async () => {
+        await refreshLineBindingStatus(record, true);
+      };
+      document.getElementById('sendWarrantyCardBtn').onclick = async () => {
+        const pin = document.getElementById('lineSendPin').value.trim();
+        if (!pin) {
+          alert('請先輸入官方帳號發送碼');
+          return;
+        }
+        document.getElementById('statusBox').textContent = `送出中｜案件編號 ${record.caseId}`;
+        try {
+          const result = await sendWarrantyCardViaApi(record, pin);
+          if (!result || !result.success) {
+            alert(result?.message || '送出失敗');
+            document.getElementById('statusBox').textContent = `送出失敗｜案件編號 ${record.caseId}`;
+            return;
+          }
+          document.getElementById('statusBox').textContent = `已由 OA 送出資訊卡｜案件編號 ${record.caseId}`;
+        } catch (error) {
+          alert(error.message || '送出失敗');
+          document.getElementById('statusBox').textContent = `送出失敗｜案件編號 ${record.caseId}`;
+        }
+      };
+
+      await refreshLineBindingStatus(record, false);
     }
 
     async function pushToApi(record) {
@@ -452,7 +545,7 @@
       const record = buildRecord(form);
       if (!confirmCreate(record, 'create')) return;
       saveRecord(record);
-      showSaved(record, '已建立並產生專屬分享資訊');
+      await showSaved(record, '已建立並產生專屬分享資訊');
       await pushToApi(record);
       window.open(record.warrantyUrl + '&from=admin', '_blank', 'noopener');
     });
@@ -461,7 +554,7 @@
       const record = buildRecord(form);
       if (!confirmCreate(record, 'save')) return;
       saveRecord(record);
-      showSaved(record, '已儲存草稿');
+      await showSaved(record, '已儲存草稿');
       await pushToApi(record);
     });
   </script>
