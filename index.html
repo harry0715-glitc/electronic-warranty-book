@@ -237,9 +237,33 @@
             paddingAll: '20px'
           },
           footer: {
-            type: 'box', layout: 'vertical', spacing: 'sm', contents: [
-              { type: 'button', style: 'primary', color: '#D4B071', action: { type: 'uri', label: '查看保固書', uri: toAbsoluteUrl(record.warrantyUrl || location.href) } },
-              { type: 'button', style: 'secondary', action: { type: 'uri', label: '我要報修', uri: toAbsoluteUrl(record.repairUrl || ('repair.html?id=' + encodeURIComponent(record.caseId || ''))) } }
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'sm',
+            backgroundColor: '#151313',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                paddingAll: '10px',
+                cornerRadius: '12px',
+                backgroundColor: '#D4B071',
+                action: { type: 'uri', label: '查看保固書', uri: toAbsoluteUrl(record.warrantyUrl || location.href) },
+                contents: [
+                  { type: 'text', text: '查看保固書', align: 'center', size: 'md', weight: 'bold', color: '#161210' }
+                ]
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                paddingAll: '10px',
+                cornerRadius: '12px',
+                backgroundColor: '#D4B071',
+                action: { type: 'uri', label: '我要報修', uri: toAbsoluteUrl(record.repairUrl || ('repair.html?id=' + encodeURIComponent(record.caseId || ''))) },
+                contents: [
+                  { type: 'text', text: '我要報修', align: 'center', size: 'md', weight: 'bold', color: '#161210' }
+                ]
+              }
             ]
           }
         }

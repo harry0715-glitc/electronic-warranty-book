@@ -49,25 +49,51 @@
           "type": "box",
           "layout": "vertical",
           "spacing": "sm",
+          "backgroundColor": "#151313",
           "contents": [
             {
-              "type": "button",
-              "style": "primary",
-              "color": "#D4B071",
+              "type": "box",
+              "layout": "vertical",
+              "paddingAll": "10px",
+              "cornerRadius": "12px",
+              "backgroundColor": "#D4B071",
               "action": {
                 "type": "uri",
                 "label": "查看保固書",
-                "uri": "https://example.com/index.html?id=WG-2026-001"
-              }
+                "uri": "https://harry0715-glitc.github.io/electronic-warranty-book/index.html?id=WG-2026-001"
+              },
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "查看保固書",
+                  "align": "center",
+                  "size": "md",
+                  "weight": "bold",
+                  "color": "#161210"
+                }
+              ]
             },
             {
-              "type": "button",
-              "style": "secondary",
+              "type": "box",
+              "layout": "vertical",
+              "paddingAll": "10px",
+              "cornerRadius": "12px",
+              "backgroundColor": "#D4B071",
               "action": {
                 "type": "uri",
                 "label": "我要報修",
                 "uri": "https://line.me/R/ti/p/@yhh1711p"
-              }
+              },
+              "contents": [
+                {
+                  "type": "text",
+                  "text": "我要報修",
+                  "align": "center",
+                  "size": "md",
+                  "weight": "bold",
+                  "color": "#161210"
+                }
+              ]
             }
           ]
         }
