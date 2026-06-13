@@ -20,9 +20,14 @@
     }
     body { padding:20px 14px 40px; }
     .page-wrap { width:min(1120px,100%); margin:0 auto; display:grid; gap:20px; }
-    .top-note { display:flex; justify-content:space-between; gap:12px; align-items:center; color:var(--ink-soft); font-size:13px; padding:0 4px; }
-    .status-chip { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px; border:1px solid rgba(155,122,67,0.24); background:rgba(255,255,255,0.56); color:#6f5528; font-weight:700; }
-    .status-chip::before { content:""; width:8px; height:8px; border-radius:50%; background:#5d8a47; box-shadow:0 0 0 4px rgba(93,138,71,0.12); }
+    .status-chip { display:inline-flex; align-items:center; gap:10px; padding:10px 18px; border-radius:999px; border:1px solid rgba(93,138,71,0.2); background:rgba(93,138,71,0.08); color:#406a31; font-weight:700; font-size:16px; line-height:1; }
+    .status-chip::before { content:""; width:10px; height:10px; border-radius:50%; background:#5d8a47; box-shadow:0 0 0 5px rgba(93,138,71,0.12); }
+    .status-chip.status-expired { border-color:rgba(181,65,65,0.2); background:rgba(181,65,65,0.08); color:#9f2f2f; }
+    .status-chip.status-expired::before { background:#b54141; box-shadow:0 0 0 5px rgba(181,65,65,0.12); }
+    .status-chip.status-pending { border-color:rgba(174,131,46,0.2); background:rgba(174,131,46,0.1); color:#8c6720; }
+    .status-chip.status-pending::before { background:#b1852b; box-shadow:0 0 0 5px rgba(174,131,46,0.12); }
+    .status-chip.status-large { padding:14px 22px; font-size:22px; gap:12px; }
+    .status-chip.status-large::before { width:12px; height:12px; }
     .paper { width:min(var(--paper-width),100%); margin:0 auto; background:var(--paper); border:1.25px solid var(--line); box-shadow:var(--shadow); }
     .paper-title { text-align:center; padding:28px 24px 24px; border-bottom:1px solid var(--line); }
     .paper-title h1 { margin:0; font-size:clamp(34px,5vw,54px); letter-spacing:0.18em; font-weight:400; }
@@ -40,7 +45,6 @@
     .seal { border:3px solid #d64539; color:#d64539; background:rgba(214,69,57,0.04); display:grid; place-items:center; text-align:center; font-weight:700; line-height:1.05; }
     .seal-main { width:110px; height:110px; font-size:21px; letter-spacing:0.06em; }
     .seal-sub { width:66px; height:66px; font-size:16px; letter-spacing:0.08em; margin-bottom:6px; }
-    .paper-date { display:flex; justify-content:center; gap:26px; padding:26px 20px 30px; font-size:18px; letter-spacing:0.48em; }
     .digital-grid { width:min(var(--paper-width),100%); margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:18px; }
     .card { background:rgba(255,255,255,0.78); border:1px solid var(--line-soft); border-radius:var(--radius-lg); box-shadow:0 10px 30px rgba(38,28,20,0.06); padding:18px; }
     .card h2 { margin:0 0 12px; font-size:18px; color:#6f5528; letter-spacing:0.08em; }
@@ -49,6 +53,7 @@
     .list-item { padding:12px 14px; border:1px solid rgba(132,123,114,0.18); border-radius:var(--radius-md); background:rgba(255,255,255,0.72); }
     .list-item strong { display:block; margin-bottom:4px; font-size:15px; }
     .list-item span { font-size:13px; line-height:1.7; color:var(--ink-soft); }
+    .list-item-wide { padding-top:14px; padding-bottom:14px; }
     .action-row { display:grid; grid-template-columns:1fr; gap:10px; margin-top:14px; }
     .btn { display:inline-flex; align-items:center; justify-content:center; min-height:46px; border-radius:12px; text-decoration:none; font-size:14px; font-weight:700; letter-spacing:0.05em; transition:transform .15s ease, box-shadow .15s ease; border:0; cursor:pointer; }
     .btn:hover { transform:translateY(-1px); }
@@ -58,10 +63,9 @@
     .footer-note { width:min(var(--paper-width),100%); margin:0 auto; color:rgba(78,71,64,0.82); font-size:12px; line-height:1.8; padding:0 6px; }
     .loading,.error-box { width:min(var(--paper-width),100%); margin:0 auto; padding:18px; border-radius:16px; background:rgba(255,255,255,0.75); border:1px solid rgba(132,123,114,0.2); }
     .hidden { display:none !important; }
-    @media (max-width:900px) { .meta-table { grid-template-columns:150px 1fr; } .meta-label,.meta-value,.statement p,.issuer-lines,.paper-date { font-size:16px; } .digital-grid { grid-template-columns:1fr; } }
+    @media (max-width:900px) { .meta-table { grid-template-columns:150px 1fr; } .meta-label,.meta-value,.statement p,.issuer-lines { font-size:16px; } .digital-grid { grid-template-columns:1fr; } }
     @media (max-width:640px) {
       body { padding:12px 8px 28px; }
-      .top-note { flex-direction:column; align-items:flex-start; }
       .paper-title { padding:20px 12px 18px; }
       .paper-title h1 { letter-spacing:0.1em; }
       .meta-table { grid-template-columns:112px 1fr; }
@@ -74,34 +78,15 @@
       .seals { justify-content:flex-start; padding-right:0; }
       .seal-main { width:88px; height:88px; font-size:18px; }
       .seal-sub { width:58px; height:58px; font-size:13px; }
-      .paper-date { gap:12px; flex-wrap:wrap; padding:18px 12px 22px; font-size:15px; letter-spacing:0.2em; }
+      .status-chip.status-large { width:100%; justify-content:center; font-size:19px; }
       .card { padding:14px; }
     }
   </style>
 </head>
 <body>
   <div class="page-wrap">
-    <div class="top-note">
-      <div id="subNote">動態電子保固書 / 可由管理頁建立案件</div>
-      <div class="status-chip" id="statusChip">載入中</div>
-    </div>
-
     <div id="loadingBox" class="loading">正在載入保固書資料…</div>
     <div id="errorBox" class="error-box hidden"></div>
-
-    <section class="paper hidden" id="paperRoot" aria-label="電子保固書主文件">
-      <header class="paper-title"><h1 id="docTitle">保固切結書</h1></header>
-      <div class="meta-table" id="metaTable"></div>
-      <section class="statement"><p id="warrantyStatement"></p></section>
-      <section class="issuer">
-        <div class="issuer-lines" id="issuerLines"></div>
-        <div class="seals">
-          <div class="seal seal-main">楓根室內<br>裝修設計</div>
-          <div class="seal seal-sub" id="sealPerson">林榮祥</div>
-        </div>
-      </section>
-      <footer class="paper-date" id="rocDate"></footer>
-    </section>
 
     <section class="digital-grid hidden" id="digitalGrid">
       <article class="card">
@@ -117,6 +102,19 @@
         </div>
         <div class="hint" id="shareHint">分享按鈕會依目前 LINE / LIFF 狀態自動切換；若無法分享，這裡會顯示原因。</div>
       </article>
+    </section>
+
+    <section class="paper hidden" id="paperRoot" aria-label="電子保固書主文件">
+      <header class="paper-title"><h1 id="docTitle">保固切結書</h1></header>
+      <div class="meta-table" id="metaTable"></div>
+      <section class="statement"><p id="warrantyStatement"></p></section>
+      <section class="issuer">
+        <div class="issuer-lines" id="issuerLines"></div>
+        <div class="seals">
+          <div class="seal seal-main">楓根室內<br>裝修設計</div>
+          <div class="seal seal-sub" id="sealPerson">林榮祥</div>
+        </div>
+      </section>
     </section>
 
     <div class="footer-note hidden" id="footerNote"></div>
@@ -358,6 +356,21 @@
       }
     }
 
+    function getStatusClass(statusText) {
+      if (statusText === '已過保') return 'status-expired';
+      if (statusText === '尚未生效' || statusText === '日期未設定') return 'status-pending';
+      return 'status-active';
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function renderSummaryItem(label, value, options = {}) {
+      const content = options.html ? value : '<span>' + escapeHtml(value || '—') + '</span>';
+      return '<div class="list-item' + (options.wide ? ' list-item-wide' : '') + '"><strong>' + escapeHtml(label || '') + '</strong>' + content + '</div>';
+    }
+
     function render(data, sourceLabel) {
       const normalized = {
         ...data,
@@ -371,11 +384,9 @@
       normalized.repairUrl = toAbsoluteUrl(normalized.repairUrl || (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || ('repair.html?id=' + encodeURIComponent(normalized.caseId || '')));
       currentRecord = normalized;
 
-      document.getElementById('subNote').textContent = sourceLabel;
-      document.getElementById('statusChip').textContent = normalized.statusText || '保固生效中';
       document.getElementById('warrantyStatement').textContent = normalized.warrantyStatement || '';
       document.getElementById('sealPerson').textContent = (normalized.issuer.responsiblePerson || '負責人').replace(/\s+/g, '');
-      document.getElementById('footerNote').textContent = '案件編號：' + (normalized.caseId || '未設定') + '｜來源：' + sourceLabel;
+      document.getElementById('footerNote').textContent = '案件編號：' + (normalized.caseId || '未設定');
 
       document.getElementById('metaTable').innerHTML = FIELDS.map(field => {
         const value = normalized[field.key] || '—';
@@ -388,15 +399,14 @@
         ['地址', normalized.issuer.address || APP_CONFIG.companyAddress || '—']
       ].map(item => '<div class="issuer-line"><strong>' + item[0] + '：</strong>' + item[1] + '</div>').join('');
 
-      document.getElementById('rocDate').innerHTML = toRocDateParts(data.acceptanceDate).map(item => '<span>' + item + '</span>').join('');
 
       document.getElementById('summaryList').innerHTML = [
-        ['案件編號', normalized.caseId],
-        ['客戶名稱', normalized.customerName],
-        ['客戶電話', normalized.customerPhone],
-        ['保固狀態', normalized.statusText],
-        ['保固到期', formatIsoDateToRoc(data.warrantyEnd)]
-      ].map(item => '<div class="list-item"><strong>' + (item[0] || '') + '</strong><span>' + (item[1] || '—') + '</span></div>').join('');
+        renderSummaryItem('案件編號', normalized.caseId),
+        renderSummaryItem('客戶名稱', normalized.customerName),
+        renderSummaryItem('客戶電話', normalized.customerPhone),
+        renderSummaryItem('保固狀態', '<div class="status-chip status-large ' + getStatusClass(normalized.statusText) + '">' + escapeHtml(normalized.statusText || '未設定') + '</div>', { html: true, wide: true }),
+        renderSummaryItem('保固到期', formatIsoDateToRoc(data.warrantyEnd))
+      ].join('');
 
       document.getElementById('repairLink').href = normalized.repairUrl;
       document.getElementById('loadingBox').classList.add('hidden');
