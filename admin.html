@@ -3,92 +3,88 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>電子保固書管理頁</title>
+  <title>電子保固書建立</title>
   <style>
     @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Rg.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
     @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Bd.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
-    :root { --bg:#141210; --panel:#1f1b18; --panel-2:#261f1a; --gold:#d1b07a; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(209,176,122,.22); --success:#6fb072; }
+    :root { --bg:#141210; --panel:#1f1b18; --panel2:#171311; --gold:#d1b07a; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(209,176,122,.22); }
     * { box-sizing: border-box; }
-    html,body { margin:0; min-height:100%; background:linear-gradient(180deg,#0f0d0c,#181410 48%,#120f0d); color:var(--ink); font-family:"LINE Seed TW","Noto Sans TC","Microsoft JhengHei",sans-serif; }
+    html, body { margin:0; min-height:100%; background:linear-gradient(180deg,#0f0d0c,#181410 48%,#120f0d); color:var(--ink); font-family:"LINE Seed TW","Noto Sans TC","Microsoft JhengHei",sans-serif; }
     body { padding:20px 14px 40px; }
-    .wrap { width:min(1180px,100%); margin:0 auto; display:grid; gap:18px; }
+    .wrap { width:min(980px,100%); margin:0 auto; display:grid; gap:18px; }
     .hero,.panel { background:linear-gradient(180deg,rgba(37,31,26,.96),rgba(20,17,15,.98)); border:1px solid var(--line); border-radius:22px; box-shadow:0 20px 60px rgba(0,0,0,.28); }
-    .hero { padding:22px; display:grid; gap:10px; }
+    .hero { padding:24px; display:grid; gap:10px; }
     .hero h1 { margin:0; color:var(--gold); font-size:30px; }
-    .hero p,.hint,.small { color:var(--muted); line-height:1.75; }
-    .grid { display:grid; grid-template-columns:1.2fr .8fr; gap:18px; }
+    .hero p,.hint,.small { margin:0; color:var(--muted); line-height:1.8; }
+    .steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:4px; }
+    .step { padding:12px 14px; border-radius:14px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); }
+    .step strong { display:block; color:var(--gold); margin-bottom:4px; }
     .panel { padding:18px; }
-    .panel h2 { margin:0 0 14px; color:var(--gold); font-size:18px; letter-spacing:.04em; }
+    .panel h2 { margin:0 0 14px; color:var(--gold); font-size:18px; }
     form { display:grid; gap:14px; }
     .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
     .field, .field-full { display:grid; gap:6px; }
     .field-full { grid-column:1 / -1; }
     label { font-size:13px; color:var(--muted); }
     input, textarea { width:100%; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:#13110f; color:var(--ink); padding:12px 13px; font:inherit; }
-    textarea { min-height:104px; resize:vertical; }
+    textarea { min-height:108px; resize:vertical; }
+    .form-note { padding:12px 14px; border-radius:14px; background:rgba(209,176,122,.08); border:1px solid rgba(209,176,122,.18); color:#f2e3c4; }
     .actions { display:flex; flex-wrap:wrap; gap:10px; }
-    button { border:0; border-radius:12px; padding:12px 16px; font:inherit; font-weight:700; cursor:pointer; }
+    button { border:0; border-radius:12px; padding:12px 18px; font:inherit; font-weight:700; cursor:pointer; }
     .primary { background:linear-gradient(180deg,#ecd7ac,#c89f60); color:#22190f; }
     .secondary { background:#2a241f; color:var(--ink); border:1px solid var(--line); }
-    .linkbox, pre, .output { background:#120f0d; border:1px solid rgba(255,255,255,.07); border-radius:14px; padding:14px; overflow:auto; }
-    .linkbox a { color:#ffe2a7; word-break:break-all; }
-    .status { padding:10px 12px; border-radius:12px; background:rgba(111,176,114,.12); color:#cfe8cf; border:1px solid rgba(111,176,114,.25); }
-    @media (max-width: 900px) { .grid,.fields { grid-template-columns:1fr; } }
+    .status { padding:12px 14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.08); color:#f2e3c4; }
+    .result { display:grid; gap:10px; }
+    .hidden { display:none !important; }
+    @media (max-width: 900px) { .fields,.steps { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
   <div class="wrap">
     <section class="hero">
-      <h1>電子保固書管理頁 MVP</h1>
-      <p>這一頁負責輸入案件資料，先可直接本機產生保固書與 LINE Flex JSON。之後把 <code>api-config.js</code> 裡的 <code>apiBase</code> 指向 Apps Script Web App，就能進一步串 Google Sheet。</p>
-      <div class="hint">建議最終流程：管理頁輸入 → Apps Script 存 Sheet → 產生 caseId → LINE 顯示「查看完整保固書 / 我要報修」。</div>
+      <h1>電子保固書建立</h1>
+      <p>依你指定的流程，這裡只輸入基本資訊。送出後會直接跳到完整保固書頁，下方只保留 <strong>我要報修</strong> 與 <strong>分享給 LINE 好友</strong>。</p>
+      <div class="steps">
+        <div class="step"><strong>1. 輸入基本資訊</strong><span>不手動輸入案件編號，系統自動排序產生。</span></div>
+        <div class="step"><strong>2. 直接預覽保固書</strong><span>送出後直接打開完整正式文件頁。</span></div>
+        <div class="step"><strong>3. 分享給好友</strong><span>在保固書頁下方用 LINE 分享 Flex 卡片。</span></div>
+      </div>
     </section>
 
-    <section class="grid">
-      <section class="panel">
-        <h2>案件資料輸入</h2>
-        <form id="warrantyForm">
-          <div class="fields">
-            <div class="field"><label>案件編號</label><input name="caseId" id="caseId" placeholder="例如 WG-2026-001" /></div>
-            <div class="field"><label>保固狀態</label><input name="statusText" value="保固生效中" /></div>
-            <div class="field"><label>案件名稱</label><input name="projectName" value="楠梓 四季心 B7/6F" /></div>
-            <div class="field"><label>客戶名稱</label><input name="customerName" value="王先生" /></div>
-            <div class="field"><label>客戶電話</label><input name="customerPhone" value="0912-345-678" /></div>
-            <div class="field"><label>工程地點</label><input name="address" value="高雄市楠梓區右昌街 358 號 6 樓之 7" /></div>
-            <div class="field-full"><label>承攬範圍</label><input name="scope" value="如契約書（報價單內容）" /></div>
-            <div class="field"><label>竣工日期</label><input name="completionDate" value="115 年 06 月 13 日" /></div>
-            <div class="field"><label>驗收日期</label><input name="acceptanceDate" value="115 年 06 月 13 日" /></div>
-            <div class="field"><label>保固起日</label><input name="warrantyStart" value="115 年 06 月 13 日" /></div>
-            <div class="field"><label>保固迄日</label><input name="warrantyEnd" value="116 年 06 月 12 日" /></div>
-            <div class="field-full"><label>結算金額</label><input name="amount" value="新台幣 陸拾壹萬伍仟 元整（615,000 元）" /></div>
-            <div class="field"><label>承攬廠商</label><input name="issuerCompany" value="楓根室內裝修設計有限公司" /></div>
-            <div class="field"><label>負責人</label><input name="issuerResponsiblePerson" value="林 榮 祥" /></div>
-            <div class="field-full"><label>公司地址</label><input name="issuerAddress" value="高雄市楠梓區清成街 31 號" /></div>
-            <div class="field-full"><label>保固聲明</label><textarea name="warrantyStatement">上列工程自驗收合格之日起計算，在保固期內，如發生局部或全部損壞時，本公司願負完全修復責任（如遇天災及不可抗拒因素或人為之故意行為，則不在此限），並拋棄先訴抗辯權，僅此聲明。</textarea></div>
-            <div class="field"><label>客服連結</label><input name="contactUrl" value="tel:0900-000-000" /></div>
-            <div class="field"><label>報修連結（可留空自動產生）</label><input name="repairUrl" placeholder="repair.html?id=WG-2026-001" /></div>
-            <div class="field-full"><label>備註 / LINE 卡片說明</label><textarea name="notes">可從 LINE 卡片點擊「查看完整保固書」或「我要報修」進入對應頁面。</textarea></div>
-          </div>
-          <div class="actions">
-            <button class="primary" type="submit">儲存本機案件 + 產生連結</button>
-            <button class="secondary" type="button" id="pushApiBtn">嘗試送到 Apps Script</button>
-            <button class="secondary" type="button" id="copyFlexBtn">複製 Flex JSON</button>
-          </div>
-        </form>
-      </section>
+    <section class="panel">
+      <h2>基本資訊</h2>
+      <form id="warrantyForm">
+        <div class="form-note">保固狀態不需輸入，會依保固起迄日期自動判定。客服按鈕與備註欄已移除。</div>
+        <div class="fields">
+          <div class="field"><label>案件名稱</label><input name="projectName" value="楠梓 四季心 B7/6F" required /></div>
+          <div class="field"><label>客戶名稱</label><input name="customerName" value="王先生" required /></div>
+          <div class="field"><label>客戶電話</label><input name="customerPhone" value="0912-345-678" required /></div>
+          <div class="field"><label>工程地點</label><input name="address" value="高雄市楠梓區右昌街 358 號 6 樓之 7" required /></div>
+          <div class="field-full"><label>承攬範圍</label><input name="scope" value="如契約書（報價單內容）" required /></div>
+          <div class="field"><label>竣工日期</label><input type="date" name="completionDate" value="2026-06-13" required /></div>
+          <div class="field"><label>驗收日期</label><input type="date" name="acceptanceDate" value="2026-06-13" required /></div>
+          <div class="field"><label>保固起日</label><input type="date" name="warrantyStart" value="2026-06-13" required /></div>
+          <div class="field"><label>保固迄日</label><input type="date" name="warrantyEnd" value="2027-06-12" required /></div>
+          <div class="field-full"><label>結算金額</label><input name="amount" value="新台幣 陸拾壹萬伍仟 元整（615,000 元）" required /></div>
+          <div class="field"><label>承攬廠商</label><input name="issuerCompany" value="楓根室內裝修設計有限公司" required /></div>
+          <div class="field"><label>負責人</label><input name="issuerResponsiblePerson" value="林 榮 祥" required /></div>
+          <div class="field-full"><label>公司地址</label><input name="issuerAddress" value="高雄市楠梓區清成街 31 號" required /></div>
+          <div class="field-full"><label>保固聲明</label><textarea name="warrantyStatement" required>上列工程自驗收合格之日起計算，在保固期內，如發生局部或全部損壞時，本公司願負完全修復責任（如遇天災及不可抗拒因素或人為之故意行為，則不在此限），並拋棄先訴抗辯權，僅此聲明。</textarea></div>
+        </div>
+        <div class="actions">
+          <button class="primary" type="submit">建立並開啟完整保固書</button>
+          <button class="secondary" type="button" id="saveOnlyBtn">只儲存草稿</button>
+        </div>
+      </form>
+    </section>
 
-      <section class="panel">
-        <h2>輸出結果</h2>
-        <div id="statusBox" class="status">尚未儲存。</div>
-        <div class="small">完整保固書網址</div>
-        <div class="linkbox"><a id="warrantyLink" href="#" target="_blank">尚未產生</a></div>
-        <div class="small">報修頁網址</div>
-        <div class="linkbox"><a id="repairLink" href="#" target="_blank">尚未產生</a></div>
-        <div class="small">案件 JSON</div>
-        <pre id="jsonPreview">{}</pre>
-        <div class="small">LINE Flex JSON</div>
-        <pre id="flexPreview">{}</pre>
-      </section>
+    <section class="panel hidden" id="resultPanel">
+      <h2>已建立草稿</h2>
+      <div class="result">
+        <div class="status" id="statusBox"></div>
+        <div class="small">你也可以直接打開剛建立的完整保固書頁：</div>
+        <div class="status"><a id="warrantyLink" href="#" target="_blank" style="color:#ffe2a7;word-break:break-all;">尚未建立</a></div>
+      </div>
     </section>
   </div>
 
@@ -99,138 +95,112 @@
       return location.origin + location.pathname.replace(/\/[^/]*$/, '');
     }
 
-    function ensureCaseId(raw) {
-      if (raw && raw.trim()) return raw.trim();
-      const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `WG-${y}${m}${day}-${Math.floor(Math.random() * 900 + 100)}`;
+    function getCases() {
+      try { return JSON.parse(localStorage.getItem('warranty_cases') || '{}'); }
+      catch (error) { return {}; }
+    }
+
+    function setCases(cases) {
+      localStorage.setItem('warranty_cases', JSON.stringify(cases));
+    }
+
+    function nextCaseId() {
+      const year = new Date().getFullYear();
+      const prefix = `WG-${year}-`;
+      const numbers = Object.keys(getCases())
+        .filter(key => key.startsWith(prefix))
+        .map(key => Number(key.slice(prefix.length)))
+        .filter(num => Number.isFinite(num));
+      const next = (numbers.length ? Math.max(...numbers) : 0) + 1;
+      return prefix + String(next).padStart(3, '0');
+    }
+
+    function toIsoDate(value) {
+      return (value || '').trim();
+    }
+
+    function deriveStatusText(start, end) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const startDate = new Date(start + 'T00:00:00');
+      const endDate = new Date(end + 'T00:00:00');
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return '日期未設定';
+      if (today < startDate) return '尚未生效';
+      if (today > endDate) return '已過保';
+      return '保固生效中';
     }
 
     function buildRecord(form) {
-      const caseId = ensureCaseId(form.caseId.value);
-      form.caseId.value = caseId;
+      const caseId = nextCaseId();
       const baseUrl = getBaseUrl();
-      const warrantyUrl = `${baseUrl}/index.html?id=${encodeURIComponent(caseId)}`;
-      const repairUrl = form.repairUrl.value.trim() || `${baseUrl}/repair.html?id=${encodeURIComponent(caseId)}`;
+      const warrantyStart = toIsoDate(form.warrantyStart.value);
+      const warrantyEnd = toIsoDate(form.warrantyEnd.value);
       return {
         caseId,
-        statusText: form.statusText.value.trim(),
+        statusText: deriveStatusText(warrantyStart, warrantyEnd),
         projectName: form.projectName.value.trim(),
         customerName: form.customerName.value.trim(),
         customerPhone: form.customerPhone.value.trim(),
         address: form.address.value.trim(),
         scope: form.scope.value.trim(),
-        completionDate: form.completionDate.value.trim(),
+        completionDate: toIsoDate(form.completionDate.value),
         amount: form.amount.value.trim(),
-        acceptanceDate: form.acceptanceDate.value.trim(),
-        warrantyStart: form.warrantyStart.value.trim(),
-        warrantyEnd: form.warrantyEnd.value.trim(),
+        acceptanceDate: toIsoDate(form.acceptanceDate.value),
+        warrantyStart,
+        warrantyEnd,
         warrantyStatement: form.warrantyStatement.value.trim(),
         issuer: {
           company: form.issuerCompany.value.trim(),
           responsiblePerson: form.issuerResponsiblePerson.value.trim(),
           address: form.issuerAddress.value.trim()
         },
-        repairUrl,
-        contactUrl: form.contactUrl.value.trim(),
-        warrantyUrl,
-        notes: form.notes.value.trim()
+        repairUrl: `${baseUrl}/repair.html?id=${encodeURIComponent(caseId)}`,
+        warrantyUrl: `${baseUrl}/index.html?id=${encodeURIComponent(caseId)}`
       };
     }
 
-    function saveLocalCase(record) {
-      const raw = localStorage.getItem('warranty_cases');
-      const cases = raw ? JSON.parse(raw) : {};
+    function saveRecord(record) {
+      const cases = getCases();
       cases[record.caseId] = record;
-      localStorage.setItem('warranty_cases', JSON.stringify(cases));
+      setCases(cases);
+      return record;
     }
 
-    function buildFlex(record) {
-      return {
-        type: 'flex',
-        altText: `${record.projectName}｜電子保固書`,
-        contents: {
-          type: 'bubble',
-          size: 'mega',
-          body: {
-            type: 'box',
-            layout: 'vertical',
-            spacing: 'md',
-            contents: [
-              { type: 'text', text: '電子保固書', weight: 'bold', size: 'xl', color: '#D4B071' },
-              { type: 'text', text: record.projectName, wrap: true, size: 'md', color: '#F6ECD8', weight: 'bold' },
-              { type: 'text', text: `案件編號｜${record.caseId}\n保固期間｜${record.warrantyStart} 至 ${record.warrantyEnd}\n狀態｜${record.statusText}` , wrap: true, size: 'sm', color: '#D2C7B6' }
-            ],
-            backgroundColor: '#1A1614'
-          },
-          footer: {
-            type: 'box',
-            layout: 'vertical',
-            spacing: 'sm',
-            contents: [
-              { type: 'button', style: 'primary', color: '#D4B071', action: { type: 'uri', label: '查看完整保固書', uri: record.warrantyUrl } },
-              { type: 'button', style: 'secondary', action: { type: 'uri', label: '我要報修', uri: record.repairUrl } }
-            ]
-          }
-        }
-      };
+    function showSaved(record, modeText) {
+      document.getElementById('resultPanel').classList.remove('hidden');
+      document.getElementById('statusBox').textContent = `${modeText}｜案件編號 ${record.caseId}｜狀態 ${record.statusText}`;
+      const link = document.getElementById('warrantyLink');
+      link.href = record.warrantyUrl;
+      link.textContent = record.warrantyUrl;
     }
 
     async function pushToApi(record) {
-      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) throw new Error('api-config.js 尚未設定 apiBase');
-      const response = await fetch(APP_CONFIG.apiBase, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'createWarranty', warranty: record })
-      });
-      const result = await response.json();
-      if (!result.success) throw new Error(result.message || '寫入失敗');
-      return result;
-    }
-
-    function updateOutput(record) {
-      saveLocalCase(record);
-      const flex = buildFlex(record);
-      document.getElementById('statusBox').textContent = `已建立案件 ${record.caseId}，可先用本機 localStorage 預覽。`;
-      const warrantyLink = document.getElementById('warrantyLink');
-      warrantyLink.textContent = record.warrantyUrl;
-      warrantyLink.href = record.warrantyUrl;
-      const repairLink = document.getElementById('repairLink');
-      repairLink.textContent = record.repairUrl;
-      repairLink.href = record.repairUrl;
-      document.getElementById('jsonPreview').textContent = JSON.stringify(record, null, 2);
-      document.getElementById('flexPreview').textContent = JSON.stringify(flex, null, 2);
-      window.__LATEST_FLEX__ = JSON.stringify(flex, null, 2);
-      window.__LATEST_RECORD__ = record;
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return;
+      try {
+        await fetch(APP_CONFIG.apiBase, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'createWarranty', warranty: record })
+        });
+      } catch (error) {
+        console.warn('pushToApi failed', error);
+      }
     }
 
     const form = document.getElementById('warrantyForm');
-    form.addEventListener('submit', (event) => {
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const record = buildRecord(form);
-      saveLocalCase(record);
-      updateOutput(record);
+      const record = saveRecord(buildRecord(form));
+      showSaved(record, '已建立並準備開啟完整保固書');
+      await pushToApi(record);
+      location.href = record.warrantyUrl + '&from=admin';
     });
 
-    document.getElementById('copyFlexBtn').addEventListener('click', async () => {
-      const text = window.__LATEST_FLEX__ || document.getElementById('flexPreview').textContent;
-      await navigator.clipboard.writeText(text);
-      document.getElementById('statusBox').textContent = 'Flex JSON 已複製到剪貼簿。';
+    document.getElementById('saveOnlyBtn').addEventListener('click', async () => {
+      const record = saveRecord(buildRecord(form));
+      showSaved(record, '已儲存草稿');
+      await pushToApi(record);
     });
-
-    document.getElementById('pushApiBtn').addEventListener('click', async () => {
-      try {
-        const record = window.__LATEST_RECORD__ || buildRecord(form);
-        const result = await pushToApi(record);
-        document.getElementById('statusBox').textContent = 'Apps Script 寫入成功：' + (result.caseId || record.caseId);
-      } catch (error) {
-        document.getElementById('statusBox').textContent = 'Apps Script 寫入失敗：' + error.message + '（MVP 階段可先用本機預覽）';
-      }
-    });
-
-    updateOutput(buildRecord(form));
   </script>
 </body>
 </html>
