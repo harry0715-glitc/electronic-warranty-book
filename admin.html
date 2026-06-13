@@ -101,6 +101,9 @@
         <div class="status" id="statusBox"></div>
         <div class="small">完整保固書網址</div>
         <div class="status"><a id="warrantyLink" href="#" target="_blank" style="color:#ffe2a7;word-break:break-all;">尚未建立</a></div>
+        <div class="actions" style="margin-top:8px;">
+          <button class="primary" type="button" id="openWarrantyPageBtn">開啟完整保固書</button>
+        </div>
         <div class="small">LINE LIFF 專屬開啟連結</div>
         <div class="status"><a id="liffLink" href="#" target="_blank" style="color:#ffe2a7;word-break:break-all;">尚未建立</a></div>
         <div class="small">分享文案（可直接複製後貼到 LINE）</div>
@@ -431,6 +434,9 @@
       const warrantyLink = document.getElementById('warrantyLink');
       warrantyLink.href = record.warrantyUrl;
       warrantyLink.textContent = record.warrantyUrl;
+      document.getElementById('openWarrantyPageBtn').onclick = () => {
+        window.open(record.warrantyUrl + '&from=admin', '_blank', 'noopener');
+      };
 
       const liffUrl = getLiffLaunchUrl(record);
       const liffLink = document.getElementById('liffLink');
@@ -547,7 +553,6 @@
       saveRecord(record);
       await showSaved(record, '已建立並產生專屬分享資訊');
       await pushToApi(record);
-      window.open(record.warrantyUrl + '&from=admin', '_blank', 'noopener');
     });
 
     document.getElementById('saveOnlyBtn').addEventListener('click', async () => {

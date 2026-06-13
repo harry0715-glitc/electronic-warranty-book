@@ -8,7 +8,8 @@ const SCRIPT_PROPERTY_KEYS = {
   LINE_CHANNEL_SECRET: 'LINE_CHANNEL_SECRET',
   LINE_WEBHOOK_KEY: 'LINE_WEBHOOK_KEY',
   LINE_LIFF_ID: 'LINE_LIFF_ID',
-  LINE_ADMIN_SEND_PIN: 'LINE_ADMIN_SEND_PIN'
+  LINE_ADMIN_SEND_PIN: 'LINE_ADMIN_SEND_PIN',
+  LAST_LINE_DEBUG: 'LAST_LINE_DEBUG'
 };
 
 function doGet(e) {
@@ -51,8 +52,13 @@ function doGet(e) {
       time: new Date().toISOString(),
       spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
       spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
-      lineConfigured: getLineConfigStatus_()
+      lineConfigured: getLineConfigStatus_(),
+      lastLineDebug: getLastLineDebug_()
     }, e.parameter.callback);
+  }
+
+  if (action === 'lineDebug') {
+    return output_({ success: true, lastLineDebug: getLastLineDebug_(), binding: getLineBindingByPhone_(e.parameter.phone || '') }, e.parameter.callback);
   }
 
   return output_({ success: false, message: 'Unknown action' }, e.parameter.callback);
@@ -404,11 +410,20 @@ function handleLineWebhook_(payload, e) {
 
 function handleLineEvent_(event) {
   const userId = event && event.source ? String(event.source.userId || '') : '';
-  if (!userId) return;
+  setLastLineDebug_({ stage: 'received', eventType: event && event.type, messageType: event && event.message && event.message.type, userIdMasked: maskUserId_(userId) });
+  if (!userId) {
+    setLastLineDebug_({ stage: 'missing_user_id', eventType: event && event.type });
+    return;
+  }
 
   if (event.type === 'follow') {
+    setLastLineDebug_({ stage: 'follow_received', userIdMasked: maskUserId_(userId) });
     if (event.replyToken) {
-      replyLineMessages_(event.replyToken, [{ type: 'text', text: '您好，請直接回傳您的手機號碼，以完成保固通知綁定。\n例如：0912345678' }]);
+      try {
+        replyLineMessages_(event.replyToken, [{ type: 'text', text: '您好，請直接回傳您的手機號碼，以完成保固通知綁定。\n例如：0912345678' }]);
+      } catch (error) {
+        setLastLineDebug_({ stage: 'follow_reply_failed', userIdMasked: maskUserId_(userId), error: String(error && error.message || error) });
+      }
     }
     return;
   }
@@ -416,13 +431,19 @@ function handleLineEvent_(event) {
   if (event.type === 'message' && event.message && event.message.type === 'text') {
     const rawText = String(event.message.text || '').trim();
     if (!looksLikePhoneBindingText_(rawText)) {
+      setLastLineDebug_({ stage: 'message_not_phone', rawText: rawText, userIdMasked: maskUserId_(userId) });
       if (event.replyToken) {
-        replyLineMessages_(event.replyToken, [{ type: 'text', text: '請直接回傳您建立保固書時填寫的手機號碼，例如：0912345678' }]);
+        try {
+          replyLineMessages_(event.replyToken, [{ type: 'text', text: '請直接回傳您建立保固書時填寫的手機號碼，例如：0912345678' }]);
+        } catch (error) {
+          setLastLineDebug_({ stage: 'message_not_phone_reply_failed', rawText: rawText, error: String(error && error.message || error) });
+        }
       }
       return;
     }
 
     const normalizedPhone = normalizePhone_(rawText);
+    setLastLineDebug_({ stage: 'phone_parsed', normalizedPhone: normalizedPhone, rawText: rawText, userIdMasked: maskUserId_(userId) });
     const profile = getLineProfileSafe_(userId);
     const now = new Date().toISOString();
     upsertLineContact_({
@@ -436,10 +457,16 @@ function handleLineEvent_(event) {
       lastBoundAt: now,
       updatedAt: now
     });
+    setLastLineDebug_({ stage: 'binding_saved', normalizedPhone: normalizedPhone, rawText: rawText, userIdMasked: maskUserId_(userId), displayName: profile.displayName || '' });
 
     if (event.replyToken) {
       const name = profile.displayName ? ('『' + profile.displayName + '』') : '您';
-      replyLineMessages_(event.replyToken, [{ type: 'text', text: name + ' 已完成綁定手機 ' + normalizedPhone + '。\n之後管理者可直接透過官方帳號發送保固資訊卡給您。' }]);
+      try {
+        replyLineMessages_(event.replyToken, [{ type: 'text', text: name + ' 已完成綁定手機 ' + normalizedPhone + '。\n之後管理者可直接透過官方帳號發送保固資訊卡給您。' }]);
+        setLastLineDebug_({ stage: 'binding_reply_sent', normalizedPhone: normalizedPhone, userIdMasked: maskUserId_(userId) });
+      } catch (error) {
+        setLastLineDebug_({ stage: 'binding_reply_failed', normalizedPhone: normalizedPhone, userIdMasked: maskUserId_(userId), error: String(error && error.message || error) });
+      }
     }
   }
 }
@@ -681,6 +708,21 @@ function ensureLineAccessToken_() {
 
 function getScriptProperty_(key) {
   return PropertiesService.getScriptProperties().getProperty(key) || '';
+}
+
+function setLastLineDebug_(payload) {
+  const data = Object.assign({ time: new Date().toISOString() }, payload || {});
+  PropertiesService.getScriptProperties().setProperty(SCRIPT_PROPERTY_KEYS.LAST_LINE_DEBUG, JSON.stringify(data));
+}
+
+function getLastLineDebug_() {
+  const raw = getScriptProperty_(SCRIPT_PROPERTY_KEYS.LAST_LINE_DEBUG);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return { raw: raw };
+  }
 }
 
 function setupWarrantyDatabase() {
