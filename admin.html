@@ -134,10 +134,23 @@
       return `https://liff.line.me/${encodeURIComponent(liffId)}?${params.toString()}`;
     }
 
+    function toIsoDate(value) {
+      const text = String(value || '').trim();
+      const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+      if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+      const parsed = new Date(text);
+      if (Number.isNaN(parsed.getTime())) return text;
+      const year = parsed.getFullYear();
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      const day = String(parsed.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
     function formatDateText(value) {
-      const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || '').trim());
+      const normalized = toIsoDate(value);
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
       if (!match) return value || '未提供';
-      return `${match[1]}-${match[2]}-${match[3]}`;
+      return `${match[1]}/${match[2]}/${match[3]}`;
     }
 
     function buildShareMessage(record) {
@@ -165,8 +178,9 @@
       const phone = normalizePhone(record.customerPhone || '');
       const oaUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || '';
       return [
-        oaUrl ? `加入官方 LINE：${oaUrl}` : '請先加入官方 LINE',
-        `加入後請傳送手機號碼：${phone || '（未提供手機號碼）'}`
+        oaUrl ? `請先加入官方 LINE：${oaUrl}` : '請先加入官方 LINE。',
+        `加入後，請傳送手機號碼：${phone || '（未提供手機號碼）'}`,
+        '謝謝您。'
       ].filter(Boolean).join('\n');
     }
 
@@ -182,12 +196,23 @@
         || cases.find(item => normalizeAddress(item && item.address).includes(normalized) || normalized.includes(normalizeAddress(item && item.address)));
     }
 
+    function normalizeKeyword(value) {
+      return String(value || '').trim().replace(/\s+/g, '').toLowerCase();
+    }
+
     function searchLocalAddressSuggestions(query) {
-      const normalized = normalizeAddress(query);
+      const raw = String(query || '').trim();
+      const normalized = normalizeKeyword(raw);
+      const phone = normalizePhone(raw);
       if (!normalized) return [];
       const seen = new Set();
       return Object.values(getCases())
-        .filter(item => normalizeAddress(item && item.address).includes(normalized))
+        .filter(item => {
+          const fields = [item?.caseId, item?.address, item?.customerName, item?.customerPhone, item?.projectName, item?.statusText];
+          const keywordMatch = fields.some(field => normalizeKeyword(field).includes(normalized));
+          const phoneMatch = phone && normalizePhone(item?.customerPhone || '') === phone;
+          return keywordMatch || phoneMatch;
+        })
         .filter(item => {
           const key = `${item.caseId || ''}|${item.address || ''}`;
           if (seen.has(key)) return false;
@@ -199,6 +224,8 @@
           caseId: item.caseId || '',
           address: item.address || '',
           customerName: item.customerName || '',
+          customerPhone: item.customerPhone || '',
+          projectName: item.projectName || '',
           statusText: item.statusText || ''
         }));
     }
@@ -234,7 +261,7 @@
 
     async function searchRemoteAddressSuggestions(query) {
       if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return [];
-      const url = `${APP_CONFIG.apiBase}?action=searchWarrantyAddresses&q=${encodeURIComponent(query)}`;
+      const url = `${APP_CONFIG.apiBase}?action=searchWarrantyRecords&q=${encodeURIComponent(query)}`;
       const result = await loadJsonp(url);
       return Array.isArray(result?.items) ? result.items : [];
     }
@@ -289,13 +316,28 @@
     async function openCaseByAddress(address) {
       const raw = String(address || '').trim();
       if (!raw) {
-        alert('請先輸入案件地址');
+        alert('請先輸入關鍵字');
         return;
       }
-      const local = findLocalCaseByAddress(raw);
-      const matched = normalizeExistingRecord(local || await findRemoteCaseByAddress(raw));
+      const localMatches = searchLocalAddressSuggestions(raw);
+      const remoteMatches = await searchRemoteAddressSuggestions(raw);
+      const merged = [];
+      const seen = new Set();
+      [...localMatches, ...remoteMatches].forEach(item => {
+        const key = `${item.caseId || ''}|${item.address || ''}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        merged.push(item);
+      });
+      const first = merged[0];
+      if (!first) {
+        alert('查無符合的案件');
+        return;
+      }
+      const local = (first.caseId && getCases()[first.caseId]) || findLocalCaseByAddress(first.address || raw);
+      const matched = normalizeExistingRecord(local || await findRemoteCaseByAddress(first.address || raw));
       if (!matched || !matched.caseId) {
-        alert('查無符合的案件地址');
+        alert('查無符合的案件');
         return;
       }
       saveRecord(matched);
@@ -353,15 +395,11 @@
       return prefix + String(next).padStart(3, '0');
     }
 
-    function toIsoDate(value) {
-      return (value || '').trim();
-    }
-
     function deriveStatusText(start, end) {
       const today = new Date();
       today.setHours(0,0,0,0);
-      const startDate = new Date(start + 'T00:00:00');
-      const endDate = new Date(end + 'T00:00:00');
+      const startDate = new Date(toIsoDate(start) + 'T00:00:00');
+      const endDate = new Date(toIsoDate(end) + 'T00:00:00');
       if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return '日期未設定';
       if (today < startDate) return '尚未生效';
       if (today > endDate) return '已過保';
@@ -472,7 +510,29 @@
     async function sendWarrantyCardViaApi(record, pin) {
       if (!window.APP_CONFIG || !APP_CONFIG.apiBase) throw new Error('未設定 API');
       const normalized = normalizePhone(record.customerPhone || '');
-      const url = `${APP_CONFIG.apiBase}?action=sendWarrantyCard&phone=${encodeURIComponent(normalized)}&caseId=${encodeURIComponent(record.caseId || '')}&pin=${encodeURIComponent(pin || '')}`;
+      const params = new URLSearchParams({
+        action: 'sendWarrantyCard',
+        phone: normalized,
+        caseId: record.caseId || '',
+        pin: pin || '',
+        projectName: record.projectName || '',
+        customerName: record.customerName || '',
+        customerPhone: record.customerPhone || '',
+        address: record.address || '',
+        scope: record.scope || '',
+        completionDate: record.completionDate || '',
+        amount: record.amount || '',
+        acceptanceDate: record.acceptanceDate || '',
+        warrantyStart: record.warrantyStart || '',
+        warrantyEnd: record.warrantyEnd || '',
+        warrantyStatement: record.warrantyStatement || '',
+        issuerCompany: record.issuer?.company || '',
+        issuerResponsiblePerson: record.issuer?.responsiblePerson || '',
+        issuerAddress: record.issuer?.address || '',
+        repairUrl: record.repairUrl || '',
+        warrantyUrl: record.warrantyUrl || ''
+      });
+      const url = `${APP_CONFIG.apiBase}?${params.toString()}`;
       return await loadJsonp(url);
     }
 
@@ -505,8 +565,8 @@
       datalist.innerHTML = '';
       (items || []).forEach(item => {
         const option = document.createElement('option');
-        option.value = item.address || '';
-        option.label = [item.customerName || '', item.caseId || '', item.statusText || ''].filter(Boolean).join('｜');
+        option.value = [item.customerName || '', item.projectName || '', item.address || '', item.caseId || ''].filter(Boolean).join('｜');
+        option.label = [item.customerPhone || '', item.statusText || ''].filter(Boolean).join('｜');
         datalist.appendChild(option);
       });
     }
@@ -577,35 +637,32 @@
     }
 
     async function pushToApi(record) {
-      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return;
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return { success: false, message: '未設定 API' };
+      const params = new URLSearchParams({
+        action: 'createWarranty',
+        caseId: record.caseId || '',
+        projectName: record.projectName || '',
+        customerName: record.customerName || '',
+        customerPhone: record.customerPhone || '',
+        address: record.address || '',
+        scope: record.scope || '',
+        completionDate: record.completionDate || '',
+        amount: record.amount || '',
+        acceptanceDate: record.acceptanceDate || '',
+        warrantyStart: record.warrantyStart || '',
+        warrantyEnd: record.warrantyEnd || '',
+        warrantyStatement: record.warrantyStatement || '',
+        issuerCompany: record.issuer?.company || '',
+        issuerResponsiblePerson: record.issuer?.responsiblePerson || '',
+        issuerAddress: record.issuer?.address || '',
+        repairUrl: record.repairUrl || '',
+        warrantyUrl: record.warrantyUrl || ''
+      });
       try {
-        const form = new URLSearchParams();
-        form.set('action', 'createWarranty');
-        form.set('caseId', record.caseId || '');
-        form.set('projectName', record.projectName || '');
-        form.set('customerName', record.customerName || '');
-        form.set('customerPhone', record.customerPhone || '');
-        form.set('address', record.address || '');
-        form.set('scope', record.scope || '');
-        form.set('completionDate', record.completionDate || '');
-        form.set('amount', record.amount || '');
-        form.set('acceptanceDate', record.acceptanceDate || '');
-        form.set('warrantyStart', record.warrantyStart || '');
-        form.set('warrantyEnd', record.warrantyEnd || '');
-        form.set('warrantyStatement', record.warrantyStatement || '');
-        form.set('issuerCompany', record.issuer?.company || '');
-        form.set('issuerResponsiblePerson', record.issuer?.responsiblePerson || '');
-        form.set('issuerAddress', record.issuer?.address || '');
-        form.set('repairUrl', record.repairUrl || '');
-        form.set('warrantyUrl', record.warrantyUrl || '');
-        await fetch(APP_CONFIG.apiBase, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-          body: form.toString()
-        });
+        return await loadJsonp(`${APP_CONFIG.apiBase}?${params.toString()}`);
       } catch (error) {
         console.warn('pushToApi failed', error);
+        return { success: false, message: error.message || 'pushToApi failed' };
       }
     }
 
@@ -647,8 +704,14 @@
       const record = buildRecord(form);
       if (!confirmCreate(record, 'create')) return;
       saveRecord(record);
-      await showSaved(record, '已建立並產生專屬分享資訊');
-      await pushToApi(record);
+      await showSaved(record, '已建立案件');
+      const apiResult = await pushToApi(record);
+      if (!apiResult || !apiResult.success) {
+        alert(apiResult?.message || '案件寫入後端失敗');
+        document.getElementById('statusBox').textContent = `後端寫入失敗｜案件編號 ${record.caseId}`;
+        return;
+      }
+      document.getElementById('statusBox').textContent = `已建立案件並寫入後端｜案件編號 ${record.caseId}｜狀態 ${record.statusText}`;
     });
 
     document.getElementById('saveOnlyBtn').addEventListener('click', async () => {
@@ -656,7 +719,13 @@
       if (!confirmCreate(record, 'save')) return;
       saveRecord(record);
       await showSaved(record, '已儲存草稿');
-      await pushToApi(record);
+      const apiResult = await pushToApi(record);
+      if (!apiResult || !apiResult.success) {
+        alert(apiResult?.message || '草稿寫入後端失敗');
+        document.getElementById('statusBox').textContent = `草稿寫入失敗｜案件編號 ${record.caseId}`;
+        return;
+      }
+      document.getElementById('statusBox').textContent = `已儲存草稿並寫入後端｜案件編號 ${record.caseId}｜狀態 ${record.statusText}`;
     });
   </script>
 </body>

@@ -30,13 +30,18 @@ function doGet(e) {
     return output_(result, e.parameter.callback);
   }
 
+  if (action === 'searchWarrantyRecords') {
+    const result = searchWarrantyRecords_(e.parameter.q || '');
+    return output_(result, e.parameter.callback);
+  }
+
   if (action === 'getLineBindingByPhone') {
     const result = getLineBindingByPhone_(e.parameter.phone || '');
     return output_(result, e.parameter.callback);
   }
 
   if (action === 'sendWarrantyCard') {
-    const result = sendWarrantyCardByPhone_(e.parameter.phone || '', e.parameter.caseId || '', e.parameter.pin || '');
+    const result = sendWarrantyCardByPhone_(e.parameter.phone || '', e.parameter.caseId || '', e.parameter.pin || '', e.parameter || {});
     return output_(result, e.parameter.callback);
   }
 
@@ -163,7 +168,16 @@ function normalizeDateText_(value) {
   if (!raw) return '';
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
   if (match) return match[1] + '-' + match[2] + '-' + match[3];
-  return raw;
+  const parsed = new Date(raw);
+  if (isNaN(parsed.getTime())) return raw;
+  return Utilities.formatDate(parsed, 'Asia/Taipei', 'yyyy-MM-dd');
+}
+
+function formatDisplayDate_(value) {
+  const normalized = normalizeDateText_(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
+  if (!match) return normalized || '未設定';
+  return match[1] + '/' + match[2] + '/' + match[3];
 }
 
 function nextCaseId_() {
@@ -250,8 +264,14 @@ function getWarrantyByAddress_(address) {
 }
 
 function searchWarrantyAddresses_(query) {
-  const target = normalizeAddress_(query);
+  return searchWarrantyRecords_(query);
+}
+
+function searchWarrantyRecords_(query) {
+  const raw = String(query || '').trim();
+  const target = normalizeKeyword_(raw);
   if (!target) return { success: true, items: [] };
+  const targetPhone = normalizePhone_(raw);
   const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
   const values = sheet.getDataRange().getValues();
   if (values.length <= 1) return { success: true, items: [] };
@@ -260,9 +280,22 @@ function searchWarrantyAddresses_(query) {
   const items = [];
 
   for (var i = 1; i < values.length; i++) {
-    var rowAddress = normalizeAddress_(values[i][5]);
-    if (!rowAddress || rowAddress.indexOf(target) < 0) continue;
     var warranty = rowToWarranty_(headers, values[i]);
+    var fields = [
+      warranty.caseId,
+      warranty.address,
+      warranty.customerName,
+      warranty.customerPhone,
+      warranty.projectName,
+      warranty.statusText
+    ];
+    var matched = fields.some(function(field) {
+      return normalizeKeyword_(field).indexOf(target) >= 0;
+    });
+    if (!matched && targetPhone) {
+      matched = normalizePhone_(warranty.customerPhone) === targetPhone || String(warranty.caseId || '').trim() === raw;
+    }
+    if (!matched) continue;
     var key = String(warranty.caseId || '') + '|' + String(warranty.address || '');
     if (seen[key]) continue;
     seen[key] = true;
@@ -278,6 +311,10 @@ function searchWarrantyAddresses_(query) {
   }
 
   return { success: true, items: items };
+}
+
+function normalizeKeyword_(text) {
+  return String(text || '').trim().replace(/\s+/g, '').toLowerCase();
 }
 
 function upsertWarranty_(warranty) {
@@ -516,7 +553,7 @@ function handleLineEvent_(event) {
   }
 }
 
-function sendWarrantyCardByPhone_(phone, caseId, pin) {
+function sendWarrantyCardByPhone_(phone, caseId, pin, fallbackInput) {
   if (!verifyAdminSendPin_(pin)) {
     return { success: false, message: '發送碼錯誤' };
   }
@@ -531,7 +568,12 @@ function sendWarrantyCardByPhone_(phone, caseId, pin) {
     return { success: false, message: '找不到綁定的 LINE userId' };
   }
 
-  const warrantyResult = getWarrantyById_(caseId);
+  let warrantyResult = getWarrantyById_(caseId);
+  if ((!warrantyResult.success || !warrantyResult.warranty) && fallbackInput) {
+    const fallbackWarranty = normalizeWarranty_(extractWarrantyInput_(fallbackInput));
+    upsertWarranty_(fallbackWarranty);
+    warrantyResult = { success: true, warranty: fallbackWarranty, recoveredFromFallback: true };
+  }
   if (!warrantyResult.success || !warrantyResult.warranty) {
     return { success: false, message: '查無此案件' };
   }
@@ -647,7 +689,7 @@ function buildWarrantyFlexMessage_(warranty) {
 }
 
 function buildWarrantyPeriodText_(warranty) {
-  return normalizeDateText_(warranty.warrantyStart) + ' 至 ' + normalizeDateText_(warranty.warrantyEnd);
+  return formatDisplayDate_(warranty.warrantyStart) + ' 至 ' + formatDisplayDate_(warranty.warrantyEnd);
 }
 
 function getStatusColor_(statusText) {
