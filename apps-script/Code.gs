@@ -990,8 +990,11 @@ function buildRepairCompletedText_(repair) {
 function buildWarrantyFlexMessage_(warranty) {
   const companyName = warranty.issuer && warranty.issuer.company ? warranty.issuer.company : '電子保固書';
   const liffUrl = getWarrantyLiffUrl_(warranty);
-  const warrantyUrl = warranty.warrantyUrl || liffUrl || '';
-  const repairUrl = (!warranty.repairUrl || warranty.repairUrl === DEFAULT_REPAIR_URL)
+  const canonicalWarrantyUrl = warranty && warranty.caseId
+    ? (DEFAULT_PUBLIC_BASE + '/index.html?id=' + encodeURIComponent(warranty.caseId))
+    : '';
+  const warrantyUrl = warranty.warrantyUrl || canonicalWarrantyUrl || liffUrl || '';
+  const repairUrl = (!warranty.repairUrl || warranty.repairUrl === DEFAULT_REPAIR_URL || /line\.me\/R\/ti\/p/i.test(String(warranty.repairUrl || '')))
     ? getCanonicalRepairUrl_(warranty.caseId)
     : warranty.repairUrl;
   const statusColor = getStatusColor_(warranty.statusText);
@@ -1069,7 +1072,7 @@ function buildWarrantyFlexMessage_(warranty) {
             action: {
               type: 'uri',
               label: '查看完整保固書',
-              uri: liffUrl || warrantyUrl
+              uri: warrantyUrl || liffUrl
             }
           },
           {
