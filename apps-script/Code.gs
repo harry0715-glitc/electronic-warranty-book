@@ -1,6 +1,7 @@
 const SHEET_NAMES = {
   WARRANTIES: 'Warranties',
-  LINE_CONTACTS: 'LineContacts'
+  LINE_CONTACTS: 'LineContacts',
+  REPAIRS: 'Repairs'
 };
 
 const DEFAULT_PUBLIC_BASE = 'https://harry0715-glitc.github.io/electronic-warranty-book';
@@ -18,6 +19,25 @@ const SCRIPT_PROPERTY_KEYS = {
 
 function doGet(e) {
   const action = (e.parameter.action || '').trim();
+
+  if (action === 'createRepair') {
+    try {
+      const repair = createRepair_(extractRepairInput_(e.parameter || {}));
+      return output_({ success: true, repairId: repair.repairId, repair: repair }, e.parameter.callback);
+    } catch (error) {
+      return output_({ success: false, message: error.message, stack: error.stack }, e.parameter.callback);
+    }
+  }
+
+  if (action === 'listRepairs') {
+    const result = listRepairs_(e.parameter.caseId || '');
+    return output_(result, e.parameter.callback);
+  }
+
+  if (action === 'deleteRepair') {
+    const result = deleteRepairRecord_(e.parameter.repairId || '', e.parameter.pin || '');
+    return output_(result, e.parameter.callback);
+  }
 
   if (action === 'getWarranty') {
     const result = getWarrantyById_(e.parameter.id || '');
@@ -107,6 +127,11 @@ function doPost(e) {
       return output_({ success: true, caseId: warranty.caseId, warranty: warranty });
     }
 
+    if (action === 'createRepair') {
+      const repair = createRepair_(extractRepairInput_(payload.repair || payload));
+      return output_({ success: true, repairId: repair.repairId, repair: repair });
+    }
+
     return output_({ success: false, message: 'Unknown action' });
   } catch (error) {
     return output_({ success: false, message: error.message, stack: error.stack });
@@ -150,11 +175,25 @@ function extractWarrantyInput_(input) {
   };
 }
 
+function extractRepairInput_(input) {
+  return {
+    caseId: input.caseId,
+    contactName: input.contactName,
+    phone: input.phone,
+    issueType: input.issueType,
+    description: input.description,
+    preferredContactTime: input.preferredContactTime,
+    source: input.source,
+    photoUploadStatus: input.photoUploadStatus,
+    createdAt: input.createdAt
+  };
+}
+
 function normalizeWarranty_(input) {
   const caseId = String(input.caseId || '').trim() || nextCaseId_();
   const warrantyStart = normalizeDateText_(input.warrantyStart);
   const warrantyEnd = normalizeDateText_(input.warrantyEnd);
-  const repairUrl = String(input.repairUrl || '').trim() || DEFAULT_REPAIR_URL;
+  const repairUrl = String(input.repairUrl || '').trim() || getCanonicalRepairUrl_(caseId);
   const warrantyUrl = String(input.warrantyUrl || '').trim() || (DEFAULT_PUBLIC_BASE + '/index.html?id=' + encodeURIComponent(caseId));
   return {
     caseId: caseId,
@@ -189,6 +228,49 @@ function normalizeDateText_(value) {
   return Utilities.formatDate(parsed, 'Asia/Taipei', 'yyyy-MM-dd');
 }
 
+function getCanonicalRepairUrl_(caseId) {
+  return DEFAULT_PUBLIC_BASE + '/repair.html?id=' + encodeURIComponent(String(caseId || '').trim());
+}
+
+function normalizeRepair_(input) {
+  const caseId = String(input.caseId || '').trim();
+  if (!caseId) throw new Error('caseId is required');
+  const warrantyResult = getWarrantyById_(caseId);
+  if (!warrantyResult.success || !warrantyResult.warranty) throw new Error('查無對應保固案件');
+  const contactName = String(input.contactName || '').trim();
+  const phone = normalizePhone_(input.phone || '');
+  const issueType = String(input.issueType || '').trim();
+  const description = String(input.description || '').trim();
+  const preferredContactTime = String(input.preferredContactTime || '').trim();
+  if (!contactName) throw new Error('contactName is required');
+  if (!phone) throw new Error('phone is required');
+  if (!issueType) throw new Error('issueType is required');
+  if (!description) throw new Error('description is required');
+  return {
+    repairId: nextRepairId_(),
+    caseId: caseId,
+    projectName: String(warrantyResult.warranty.projectName || '').trim(),
+    customerName: String(warrantyResult.warranty.customerName || '').trim(),
+    warrantyCustomerPhone: normalizePhone_(warrantyResult.warranty.customerPhone || ''),
+    contactName: contactName,
+    phone: phone,
+    issueType: issueType,
+    description: description,
+    preferredContactTime: preferredContactTime,
+    source: String(input.source || 'repair-form').trim() || 'repair-form',
+    photoUploadStatus: String(input.photoUploadStatus || 'reserved_for_future_drive_upload').trim(),
+    createdAt: String(input.createdAt || '').trim() || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    status: 'new'
+  };
+}
+
+function createRepair_(input) {
+  const repair = normalizeRepair_(input);
+  appendRepair_(repair);
+  return repair;
+}
+
 function formatDisplayDate_(value) {
   const normalized = normalizeDateText_(value);
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
@@ -207,6 +289,24 @@ function nextCaseId_() {
     var caseId = String(values[i][0] || '').trim();
     if (caseId.indexOf(prefix) === 0) {
       var num = Number(caseId.slice(prefix.length));
+      if (!isNaN(num) && num > maxNumber) maxNumber = num;
+    }
+  }
+
+  return prefix + ('000' + (maxNumber + 1)).slice(-3);
+}
+
+function nextRepairId_() {
+  const sheet = getOrCreateSheet_(SHEET_NAMES.REPAIRS, repairHeaders_());
+  const values = sheet.getDataRange().getValues();
+  const year = new Date().getFullYear();
+  const prefix = 'RP-' + year + '-';
+  var maxNumber = 0;
+
+  for (var i = 1; i < values.length; i++) {
+    var repairId = String(values[i][0] || '').trim();
+    if (repairId.indexOf(prefix) === 0) {
+      var num = Number(repairId.slice(prefix.length));
       if (!isNaN(num) && num > maxNumber) maxNumber = num;
     }
   }
@@ -456,12 +556,27 @@ function upsertWarranty_(warranty) {
   sheet.appendRow(row);
 }
 
+function appendRepair_(repair) {
+  const sheet = getOrCreateSheet_(SHEET_NAMES.REPAIRS, repairHeaders_());
+  const row = repairToRow_(repair);
+  sheet.appendRow(row);
+  sheet.getRange(sheet.getLastRow(), 1, 1, row.length).setNumberFormat('@STRING@');
+}
+
 function warrantyHeaders_() {
   return ['caseId', 'statusText', 'projectName', 'customerName', 'customerPhone', 'address', 'scope', 'completionDate', 'amount', 'acceptanceDate', 'warrantyStart', 'warrantyEnd', 'warrantyStatement', 'issuerCompany', 'issuerResponsiblePerson', 'issuerAddress', 'repairUrl', 'warrantyUrl', 'updatedAt'];
 }
 
+function repairHeaders_() {
+  return ['repairId', 'caseId', 'projectName', 'customerName', 'warrantyCustomerPhone', 'contactName', 'phone', 'issueType', 'description', 'preferredContactTime', 'source', 'photoUploadStatus', 'status', 'createdAt', 'updatedAt'];
+}
+
 function warrantyToRow_(w) {
   return [w.caseId, w.statusText, w.projectName, w.customerName, w.customerPhone, w.address, w.scope, w.completionDate, w.amount, w.acceptanceDate, w.warrantyStart, w.warrantyEnd, w.warrantyStatement, w.issuerCompany, w.issuerResponsiblePerson, w.issuerAddress, w.repairUrl, w.warrantyUrl, w.updatedAt];
+}
+
+function repairToRow_(r) {
+  return [r.repairId, r.caseId, r.projectName, r.customerName, r.warrantyCustomerPhone, r.contactName, r.phone, r.issueType, r.description, r.preferredContactTime, r.source, r.photoUploadStatus, r.status, r.createdAt, r.updatedAt];
 }
 
 function rowToWarranty_(headers, row) {
@@ -489,6 +604,59 @@ function rowToWarranty_(headers, row) {
     repairUrl: obj.repairUrl,
     warrantyUrl: obj.warrantyUrl
   };
+}
+
+function rowToRepair_(headers, row) {
+  const obj = rowToObject_(headers, row);
+  return {
+    repairId: String(obj.repairId || '').trim(),
+    caseId: String(obj.caseId || '').trim(),
+    projectName: String(obj.projectName || '').trim(),
+    customerName: String(obj.customerName || '').trim(),
+    warrantyCustomerPhone: normalizePhone_(obj.warrantyCustomerPhone || ''),
+    contactName: String(obj.contactName || '').trim(),
+    phone: normalizePhone_(obj.phone || ''),
+    issueType: String(obj.issueType || '').trim(),
+    description: String(obj.description || '').trim(),
+    preferredContactTime: String(obj.preferredContactTime || '').trim(),
+    source: String(obj.source || '').trim(),
+    photoUploadStatus: String(obj.photoUploadStatus || '').trim(),
+    status: String(obj.status || '').trim(),
+    createdAt: String(obj.createdAt || '').trim(),
+    updatedAt: String(obj.updatedAt || '').trim()
+  };
+}
+
+function listRepairs_(caseId) {
+  const targetCaseId = String(caseId || '').trim();
+  const sheet = getOrCreateSheet_(SHEET_NAMES.REPAIRS, repairHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return { success: true, items: [] };
+  const headers = values[0];
+  const items = [];
+  for (var i = values.length - 1; i >= 1; i--) {
+    const repair = rowToRepair_(headers, values[i]);
+    if (targetCaseId && repair.caseId !== targetCaseId) continue;
+    items.push(repair);
+  }
+  return { success: true, items: items };
+}
+
+function deleteRepairRecord_(repairId, pin) {
+  const targetRepairId = String(repairId || '').trim();
+  if (!targetRepairId) return { success: false, message: 'repairId is required' };
+  if (!verifyAdminSendPin_(pin)) return { success: false, message: '發送碼錯誤' };
+  const sheet = getOrCreateSheet_(SHEET_NAMES.REPAIRS, repairHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return { success: false, message: 'No repair data found' };
+  const headers = values[0];
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0] || '').trim() !== targetRepairId) continue;
+    const repair = rowToRepair_(headers, values[i]);
+    sheet.deleteRow(i + 1);
+    return { success: true, deletedRepair: repair };
+  }
+  return { success: false, message: 'Repair not found' };
 }
 
 function normalizePhone_(value) {
@@ -719,7 +887,9 @@ function buildWarrantyFlexMessage_(warranty) {
   const companyName = warranty.issuer && warranty.issuer.company ? warranty.issuer.company : '電子保固書';
   const liffUrl = getWarrantyLiffUrl_(warranty);
   const warrantyUrl = warranty.warrantyUrl || liffUrl || '';
-  const repairUrl = warranty.repairUrl || warrantyUrl;
+  const repairUrl = (!warranty.repairUrl || warranty.repairUrl === DEFAULT_REPAIR_URL)
+    ? getCanonicalRepairUrl_(warranty.caseId)
+    : warranty.repairUrl;
   const statusColor = getStatusColor_(warranty.statusText);
 
   return {
@@ -939,15 +1109,19 @@ function getLastLineDebug_() {
 function setupWarrantyDatabase() {
   const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
   const lineSheet = getOrCreateSheet_(SHEET_NAMES.LINE_CONTACTS, getLineContactHeaders_());
+  const repairSheet = getOrCreateSheet_(SHEET_NAMES.REPAIRS, repairHeaders_());
   applySheetFormats_(sheet, SHEET_NAMES.WARRANTIES);
   applySheetFormats_(lineSheet, SHEET_NAMES.LINE_CONTACTS);
+  applySheetFormats_(repairSheet, SHEET_NAMES.REPAIRS);
   return {
     spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
     spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
     warrantySheetName: sheet.getName(),
     lineContactSheetName: lineSheet.getName(),
+    repairSheetName: repairSheet.getName(),
     warrantyHeaderCount: warrantyHeaders_().length,
     lineContactHeaderCount: getLineContactHeaders_().length,
+    repairHeaderCount: repairHeaders_().length,
     lastRow: sheet.getLastRow()
   };
 }
@@ -981,6 +1155,9 @@ function applySheetFormats_(sheet, name) {
   }
   if (name === SHEET_NAMES.LINE_CONTACTS) {
     sheet.getRange('A:B').setNumberFormat('@STRING@');
+  }
+  if (name === SHEET_NAMES.REPAIRS) {
+    sheet.getRange('A:G').setNumberFormat('@STRING@');
   }
 }
 

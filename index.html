@@ -221,6 +221,10 @@
       }
     }
 
+    function getCanonicalRepairUrl(caseId) {
+      return toAbsoluteUrl('repair.html?id=' + encodeURIComponent(caseId || ''));
+    }
+
     function getStatusClass(statusText) {
       if (statusText === '已過保') return 'status-expired';
       if (statusText === '尚未生效' || statusText === '日期未設定') return 'status-pending';
@@ -246,7 +250,13 @@
         issuer: data.issuer || {}
       };
       normalized.warrantyUrl = toAbsoluteUrl(normalized.warrantyUrl || location.href);
-      normalized.repairUrl = toAbsoluteUrl(normalized.repairUrl || (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || ('repair.html?id=' + encodeURIComponent(normalized.caseId || '')));
+      const legacyRepairOfficialUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || '';
+      const preferredRepairUrl = getCanonicalRepairUrl(normalized.caseId || '');
+      normalized.repairUrl = toAbsoluteUrl(
+        !normalized.repairUrl || normalized.repairUrl === legacyRepairOfficialUrl
+          ? preferredRepairUrl
+          : normalized.repairUrl
+      );
       currentRecord = normalized;
 
       document.getElementById('warrantyStatement').textContent = normalized.warrantyStatement || '';

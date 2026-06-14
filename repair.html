@@ -7,27 +7,40 @@
   <style>
     @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Rg.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
     @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Bd.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
-    :root { --bg:#141210; --panel:#1f1b18; --gold:#d1b07a; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(209,176,122,.22); }
+    :root { --bg:#141210; --panel:#1f1b18; --gold:#d1b07a; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(209,176,122,.22); --ok:#6fca88; --warn:#f2e3c4; }
     * { box-sizing: border-box; }
     html,body { margin:0; min-height:100%; background:linear-gradient(180deg,#0f0d0c,#181410 48%,#120f0d); color:var(--ink); font-family:"LINE Seed TW","Noto Sans TC","Microsoft JhengHei",sans-serif; }
     body { padding:20px 14px 40px; }
     .wrap { width:min(760px,100%); margin:0 auto; display:grid; gap:18px; }
     .panel { background:linear-gradient(180deg,rgba(37,31,26,.96),rgba(20,17,15,.98)); border:1px solid var(--line); border-radius:22px; box-shadow:0 20px 60px rgba(0,0,0,.28); padding:20px; }
     h1,h2 { margin:0 0 12px; color:var(--gold); }
-    p,.small { color:var(--muted); line-height:1.75; }
+    p,.small { color:var(--muted); line-height:1.75; margin:0; }
+    .small { font-size:13px; }
+    .summary { display:grid; gap:10px; margin-top:12px; }
+    .summary-item { padding:12px 14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.07); }
+    .summary-item strong { display:block; color:var(--gold); margin-bottom:4px; }
     form { display:grid; gap:12px; }
     label { display:grid; gap:6px; font-size:13px; color:var(--muted); }
     input, textarea { width:100%; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:#13110f; color:var(--ink); padding:12px 13px; font:inherit; }
     textarea { min-height:120px; resize:vertical; }
     button { border:0; border-radius:12px; padding:12px 16px; font:inherit; font-weight:700; cursor:pointer; background:linear-gradient(180deg,#ecd7ac,#c89f60); color:#22190f; }
-    pre { background:#120f0d; border:1px solid rgba(255,255,255,.07); border-radius:14px; padding:14px; overflow:auto; }
+    button[disabled] { opacity:.65; cursor:wait; }
+    .status { padding:14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.07); color:var(--warn); }
+    pre { background:#120f0d; border:1px solid rgba(255,255,255,.07); border-radius:14px; padding:14px; overflow:auto; white-space:pre-wrap; word-break:break-word; }
+    .ok { color:var(--ok); }
+    .hidden { display:none !important; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <section class="panel">
-      <h1>保固報修頁 MVP</h1>
-      <p>這一頁可以從 LINE 卡片的「我要報修」按鈕進來。MVP 階段先支援本機暫存；Apps Script 接好後即可寫入 Google Sheet 的 Repairs 工作表。</p>
+      <h1>保固報修</h1>
+      <p>此頁提供文字版報修登記。送出後會直接寫入 Google Sheet 的 <strong>Repairs</strong> 工作表；未來若要增加照片上傳，可再把照片改存 Google Drive，並在報修單保留附件欄位。</p>
+      <div class="summary" id="caseSummary">
+        <div class="summary-item"><strong>案件編號</strong><span id="summaryCaseId">讀取中…</span></div>
+        <div class="summary-item"><strong>案件名稱</strong><span id="summaryProjectName">讀取中…</span></div>
+        <div class="summary-item"><strong>客戶名稱</strong><span id="summaryCustomerName">讀取中…</span></div>
+      </div>
     </section>
 
     <section class="panel">
@@ -37,23 +50,38 @@
         <label>聯絡人<input name="contactName" placeholder="請輸入聯絡人姓名" required /></label>
         <label>聯絡電話<input name="phone" placeholder="請輸入聯絡電話" required /></label>
         <label>問題類型<input name="issueType" placeholder="例如：木作鬆脫 / 五金故障 / 滲水" required /></label>
-        <label>問題描述<textarea name="description" placeholder="請描述問題、發生位置、希望聯繫時段" required></textarea></label>
-        <button type="submit">送出報修</button>
+        <label>希望聯絡時段<input name="preferredContactTime" placeholder="例如：平日 14:00 後 / 週六上午" /></label>
+        <label>問題描述<textarea name="description" placeholder="請描述問題、發生位置、目前狀況，方便安排後續處理" required></textarea></label>
+        <button type="submit" id="submitBtn">送出報修</button>
       </form>
     </section>
 
     <section class="panel">
       <h2>送出結果</h2>
-      <p id="resultText">尚未送出。</p>
-      <div class="small">報修 payload</div>
+      <div class="status" id="resultText">尚未送出。</div>
+      <div class="small" style="margin-top:10px;">本次送出內容</div>
       <pre id="payloadPreview">{}</pre>
     </section>
   </div>
 
   <script src="api-config.js"></script>
   <script>
+    function getMergedQueryParams() {
+      const params = new URLSearchParams(location.search || '');
+      const liffState = params.get('liff.state') || '';
+      if (liffState) {
+        const rawState = String(liffState).trim();
+        const normalizedState = rawState.startsWith('?') ? rawState.slice(1) : rawState.replace(/^\//, '');
+        const nested = new URLSearchParams(normalizedState);
+        nested.forEach((value, key) => {
+          if (!params.has(key)) params.set(key, value);
+        });
+      }
+      return params;
+    }
+
     function getCaseId() {
-      return new URLSearchParams(location.search).get('id') || '未指定案件';
+      return getMergedQueryParams().get('id') || '';
     }
 
     function saveLocalRepair(payload) {
@@ -61,6 +89,27 @@
       const items = raw ? JSON.parse(raw) : [];
       items.push(payload);
       localStorage.setItem('repair_requests', JSON.stringify(items));
+    }
+
+    async function loadWarranty(caseId) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) throw new Error('api-config.js 尚未設定 apiBase');
+      const callbackName = '__repairWarrantyCallback_' + Date.now();
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        window[callbackName] = (payload) => {
+          delete window[callbackName];
+          script.remove();
+          if (payload && payload.success && payload.warranty) resolve(payload.warranty);
+          else reject(new Error(payload && payload.message ? payload.message : '查無案件資料'));
+        };
+        script.onerror = () => {
+          delete window[callbackName];
+          script.remove();
+          reject(new Error('無法讀取案件資料'));
+        };
+        script.src = APP_CONFIG.apiBase + '?action=getWarranty&id=' + encodeURIComponent(caseId) + '&callback=' + callbackName;
+        document.body.appendChild(script);
+      });
     }
 
     async function pushToApi(payload) {
@@ -75,33 +124,65 @@
       return result;
     }
 
-    document.getElementById('caseId').value = getCaseId();
+    function setSummary(warranty) {
+      document.getElementById('summaryCaseId').textContent = warranty.caseId || '未提供';
+      document.getElementById('summaryProjectName').textContent = warranty.projectName || '未提供';
+      document.getElementById('summaryCustomerName').textContent = warranty.customerName || '未提供';
+    }
+
+    async function init() {
+      const caseId = getCaseId();
+      document.getElementById('caseId').value = caseId;
+      if (!caseId) {
+        document.getElementById('resultText').textContent = '缺少案件編號，請從保固書或資訊卡重新開啟報修頁。';
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('summaryCaseId').textContent = '未指定';
+        document.getElementById('summaryProjectName').textContent = '未指定';
+        document.getElementById('summaryCustomerName').textContent = '未指定';
+        return;
+      }
+      try {
+        const warranty = await loadWarranty(caseId);
+        setSummary(warranty);
+      } catch (error) {
+        document.getElementById('resultText').textContent = '案件資料讀取失敗：' + error.message;
+      }
+    }
 
     document.getElementById('repairForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
+      const submitBtn = document.getElementById('submitBtn');
       const payload = {
-        caseId: form.caseId.value,
+        caseId: form.caseId.value.trim(),
         contactName: form.contactName.value.trim(),
         phone: form.phone.value.trim(),
         issueType: form.issueType.value.trim(),
+        preferredContactTime: form.preferredContactTime.value.trim(),
         description: form.description.value.trim(),
+        source: 'repair-form',
+        photoUploadStatus: 'reserved_for_future_drive_upload',
         createdAt: new Date().toISOString()
       };
       document.getElementById('payloadPreview').textContent = JSON.stringify(payload, null, 2);
+      submitBtn.disabled = true;
+      document.getElementById('resultText').textContent = '送出中，請稍候…';
       try {
         saveLocalRepair(payload);
-        try {
-          await pushToApi(payload);
-          document.getElementById('resultText').textContent = '報修已送出至 Apps Script / Google Sheet。';
-        } catch (apiError) {
-          document.getElementById('resultText').textContent = '已先存本機報修資料；Apps Script 尚未成功串接：' + apiError.message;
-        }
+        const result = await pushToApi(payload);
+        document.getElementById('resultText').innerHTML = '<span class="ok">報修已送出成功</span>｜報修單號 ' + (result.repairId || '未提供') + '。我們會依填寫資訊安排後續聯繫。';
         form.reset();
         form.caseId.value = payload.caseId;
+        document.getElementById('payloadPreview').textContent = JSON.stringify(result.repair || payload, null, 2);
       } catch (error) {
-        document.getElementById('resultText').textContent = '送出失敗：' + error.message;
+        document.getElementById('resultText').textContent = '送出失敗：' + error.message + '。本機已保留一份暫存資料。';
+      } finally {
+        submitBtn.disabled = false;
       }
+    });
+
+    init().catch((error) => {
+      document.getElementById('resultText').textContent = '初始化失敗：' + error.message;
     });
   </script>
 </body>
