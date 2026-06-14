@@ -127,7 +127,23 @@
     ];
     let currentRecord = null;
 
-    function getQueryParam(name) { return new URLSearchParams(location.search).get(name); }
+    function getMergedQueryParams() {
+      const params = new URLSearchParams(location.search || '');
+      const liffState = params.get('liff.state') || '';
+      if (liffState) {
+        const rawState = String(liffState).trim();
+        const normalizedState = rawState.startsWith('?') ? rawState.slice(1) : rawState.replace(/^\//, '');
+        const nested = new URLSearchParams(normalizedState);
+        nested.forEach((value, key) => {
+          if (!params.has(key)) params.set(key, value);
+        });
+      }
+      return params;
+    }
+
+    function getQueryParam(name) {
+      return getMergedQueryParams().get(name);
+    }
 
     function readLocalCase(caseId) {
       try {
