@@ -173,19 +173,11 @@
       return `${year}-${month}-${day}`;
     }
 
-    function formatIsoDateToRoc(isoText) {
+    function formatDisplayDate(isoText) {
       const normalized = normalizeIsoDateText(isoText);
       const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
       if (!match) return isoText || '未設定';
-      const year = String(Number(match[1]) - 1911);
-      return `${year} 年 ${match[2]} 月 ${match[3]} 日`;
-    }
-
-    function toRocDateParts(isoText) {
-      const normalized = normalizeIsoDateText(isoText);
-      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
-      if (!match) return ['中華民國', '115 年', '06 月', '13 日'];
-      return ['中華民國', String(Number(match[1]) - 1911) + ' 年', match[2] + ' 月', match[3] + ' 日'];
+      return `${match[1]}/${match[2]}/${match[3]}`;
     }
 
     function deriveStatusText(start, end) {
@@ -202,7 +194,7 @@
     }
 
     function makeWarrantyRange(data) {
-      return data.warrantyStart && data.warrantyEnd ? (formatIsoDateToRoc(data.warrantyStart) + ' 至 ' + formatIsoDateToRoc(data.warrantyEnd)) : '未設定';
+      return data.warrantyStart && data.warrantyEnd ? (formatDisplayDate(data.warrantyStart) + ' 至 ' + formatDisplayDate(data.warrantyEnd)) : '未設定';
     }
 
     function toAbsoluteUrl(url) {
@@ -233,8 +225,8 @@
         ...data,
         statusText: deriveStatusText(data.warrantyStart, data.warrantyEnd),
         warrantyRange: makeWarrantyRange(data),
-        completionDate: formatIsoDateToRoc(data.completionDate),
-        acceptanceDate: formatIsoDateToRoc(data.acceptanceDate),
+        completionDate: formatDisplayDate(data.completionDate),
+        acceptanceDate: formatDisplayDate(data.acceptanceDate),
         issuer: data.issuer || {}
       };
       normalized.warrantyUrl = toAbsoluteUrl(normalized.warrantyUrl || location.href);
@@ -261,7 +253,7 @@
         renderSummaryItem('客戶名稱', normalized.customerName),
         renderSummaryItem('客戶電話', normalized.customerPhone),
         renderSummaryItem('保固狀態', '<div class="status-chip status-large ' + getStatusClass(normalized.statusText) + '">' + escapeHtml(normalized.statusText || '未設定') + '</div>', { html: true, wide: true }),
-        renderSummaryItem('保固到期', formatIsoDateToRoc(data.warrantyEnd))
+        renderSummaryItem('保固到期', formatDisplayDate(data.warrantyEnd))
       ].join('');
 
       document.getElementById('repairLink').href = normalized.repairUrl;
