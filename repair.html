@@ -114,14 +114,39 @@
 
     async function pushToApi(payload) {
       if (!window.APP_CONFIG || !APP_CONFIG.apiBase) throw new Error('api-config.js 尚未設定 apiBase');
-      const response = await fetch(APP_CONFIG.apiBase, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'createRepair', repair: payload })
+      const callbackName = '__repairCreateCallback_' + Date.now();
+      const params = new URLSearchParams({
+        action: 'createRepair',
+        caseId: payload.caseId || '',
+        contactName: payload.contactName || '',
+        phone: payload.phone || '',
+        issueType: payload.issueType || '',
+        preferredContactTime: payload.preferredContactTime || '',
+        description: payload.description || '',
+        source: payload.source || '',
+        photoUploadStatus: payload.photoUploadStatus || '',
+        createdAt: payload.createdAt || '',
+        callback: callbackName
       });
-      const result = await response.json();
-      if (!result.success) throw new Error(result.message || '報修送出失敗');
-      return result;
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        window[callbackName] = (result) => {
+          delete window[callbackName];
+          script.remove();
+          if (!result || !result.success) {
+            reject(new Error(result && result.message ? result.message : '報修送出失敗'));
+            return;
+          }
+          resolve(result);
+        };
+        script.onerror = () => {
+          delete window[callbackName];
+          script.remove();
+          reject(new Error('無法送出報修資料'));
+        };
+        script.src = APP_CONFIG.apiBase + '?' + params.toString();
+        document.body.appendChild(script);
+      });
     }
 
     function setSummary(warranty) {
