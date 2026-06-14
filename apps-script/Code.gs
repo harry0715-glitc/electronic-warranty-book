@@ -22,8 +22,8 @@ function doGet(e) {
 
   if (action === 'createRepair') {
     try {
-      const repair = createRepair_(extractRepairInput_(e.parameter || {}));
-      return output_({ success: true, repairId: repair.repairId, repair: repair }, e.parameter.callback);
+      const created = createRepair_(extractRepairInput_(e.parameter || {}));
+      return output_({ success: true, repairId: created.repair.repairId, repair: created.repair, notify: created.notify }, e.parameter.callback);
     } catch (error) {
       return output_({ success: false, message: error.message, stack: error.stack }, e.parameter.callback);
     }
@@ -36,6 +36,11 @@ function doGet(e) {
 
   if (action === 'deleteRepair') {
     const result = deleteRepairRecord_(e.parameter.repairId || '', e.parameter.pin || '');
+    return output_(result, e.parameter.callback);
+  }
+
+  if (action === 'updateRepairStatus') {
+    const result = updateRepairStatus_(e.parameter.repairId || '', e.parameter.status || '', e.parameter.pin || '', e.parameter.notifyCustomer || '');
     return output_(result, e.parameter.callback);
   }
 
@@ -128,8 +133,8 @@ function doPost(e) {
     }
 
     if (action === 'createRepair') {
-      const repair = createRepair_(extractRepairInput_(payload.repair || payload));
-      return output_({ success: true, repairId: repair.repairId, repair: repair });
+      const created = createRepair_(extractRepairInput_(payload.repair || payload));
+      return output_({ success: true, repairId: created.repair.repairId, repair: created.repair, notify: created.notify });
     }
 
     return output_({ success: false, message: 'Unknown action' });
@@ -261,14 +266,18 @@ function normalizeRepair_(input) {
     photoUploadStatus: String(input.photoUploadStatus || 'reserved_for_future_drive_upload').trim(),
     createdAt: String(input.createdAt || '').trim() || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    status: 'new'
+    status: 'pending'
   };
 }
 
 function createRepair_(input) {
   const repair = normalizeRepair_(input);
   appendRepair_(repair);
-  return repair;
+  const notifyResult = notifyRepairCreated_(repair);
+  return {
+    repair: repair,
+    notify: notifyResult
+  };
 }
 
 function formatDisplayDate_(value) {
@@ -639,7 +648,39 @@ function listRepairs_(caseId) {
     if (targetCaseId && repair.caseId !== targetCaseId) continue;
     items.push(repair);
   }
+  items.sort(function(a, b) {
+    if (a.status !== b.status) {
+      if (a.status === 'pending') return -1;
+      if (b.status === 'pending') return 1;
+    }
+    return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+  });
   return { success: true, items: items };
+}
+
+function updateRepairStatus_(repairId, status, pin, notifyCustomer) {
+  const targetRepairId = String(repairId || '').trim();
+  const nextStatus = String(status || '').trim();
+  if (!targetRepairId) return { success: false, message: 'repairId is required' };
+  if (!verifyAdminSendPin_(pin)) return { success: false, message: '發送碼錯誤' };
+  if (['pending', 'completed'].indexOf(nextStatus) < 0) return { success: false, message: 'invalid status' };
+  const sheet = getOrCreateSheet_(SHEET_NAMES.REPAIRS, repairHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return { success: false, message: 'No repair data found' };
+  const headers = values[0];
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0] || '').trim() !== targetRepairId) continue;
+    const repair = rowToRepair_(headers, values[i]);
+    repair.status = nextStatus;
+    repair.updatedAt = new Date().toISOString();
+    const row = repairToRow_(repair);
+    sheet.getRange(i + 1, 1, 1, row.length).setValues([row]);
+    const notify = shouldNotifyCustomer_(notifyCustomer)
+      ? (nextStatus === 'completed' ? notifyRepairCompleted_(repair) : notifyRepairCreated_(repair))
+      : { success: false, skipped: true, message: 'notify skipped' };
+    return { success: true, repair: repair, notify: notify };
+  }
+  return { success: false, message: 'Repair not found' };
 }
 
 function deleteRepairRecord_(repairId, pin) {
@@ -881,6 +922,69 @@ function sendWarrantyCardByPhone_(phone, caseId, pin, fallbackInput) {
     caseId: caseId,
     lineResponse: response
   };
+}
+
+function shouldNotifyCustomer_(value) {
+  const text = String(value || '').trim().toLowerCase();
+  return text === '1' || text === 'true' || text === 'yes' || text === 'on';
+}
+
+function notifyRepairCreated_(repair) {
+  return notifyRepairCustomerByPhone_(repair, buildRepairCreatedText_(repair));
+}
+
+function notifyRepairCompleted_(repair) {
+  return notifyRepairCustomerByPhone_(repair, buildRepairCompletedText_(repair));
+}
+
+function notifyRepairCustomerByPhone_(repair, text) {
+  const phone = repair && repair.warrantyCustomerPhone ? repair.warrantyCustomerPhone : '';
+  const binding = getLineBindingByPhone_(phone);
+  if (!binding.success || !binding.bound) {
+    return {
+      success: false,
+      skipped: true,
+      reason: 'unbound',
+      message: '客戶尚未完成 LINE 綁定',
+      phone: normalizePhone_(phone)
+    };
+  }
+  const contact = findLineContactByPhone_(binding.phone);
+  if (!contact || !contact.userId) {
+    return {
+      success: false,
+      skipped: true,
+      reason: 'missing_user_id',
+      message: '找不到綁定的 LINE userId',
+      phone: binding.phone
+    };
+  }
+  const response = pushLineMessages_(contact.userId, [{ type: 'text', text: text }]);
+  return {
+    success: true,
+    phone: binding.phone,
+    displayName: binding.displayName || '',
+    lineResponse: response
+  };
+}
+
+function buildRepairCreatedText_(repair) {
+  return [
+    '您好，已收到您的報修申請。',
+    '報修單號：' + (repair.repairId || '未提供'),
+    '案件編號：' + (repair.caseId || '未提供'),
+    '問題類型：' + (repair.issueType || '未提供'),
+    '我們會依您填寫的內容盡快與您聯繫安排處理。'
+  ].join('\n');
+}
+
+function buildRepairCompletedText_(repair) {
+  return [
+    '您好，您的報修案件已更新為處理完成。',
+    '報修單號：' + (repair.repairId || '未提供'),
+    '案件編號：' + (repair.caseId || '未提供'),
+    '若仍需協助，歡迎再次透過保固頁提出報修。'
+  ].join('\n');
 }
 
 function buildWarrantyFlexMessage_(warranty) {

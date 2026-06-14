@@ -26,7 +26,6 @@
     button { border:0; border-radius:12px; padding:12px 16px; font:inherit; font-weight:700; cursor:pointer; background:linear-gradient(180deg,#ecd7ac,#c89f60); color:#22190f; }
     button[disabled] { opacity:.65; cursor:wait; }
     .status { padding:14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.07); color:var(--warn); }
-    pre { background:#120f0d; border:1px solid rgba(255,255,255,.07); border-radius:14px; padding:14px; overflow:auto; white-space:pre-wrap; word-break:break-word; }
     .ok { color:var(--ok); }
     .hidden { display:none !important; }
   </style>
@@ -59,8 +58,6 @@
     <section class="panel">
       <h2>送出結果</h2>
       <div class="status" id="resultText">尚未送出。</div>
-      <div class="small" style="margin-top:10px;">本次送出內容</div>
-      <pre id="payloadPreview">{}</pre>
     </section>
   </div>
 
@@ -189,16 +186,17 @@
         photoUploadStatus: 'reserved_for_future_drive_upload',
         createdAt: new Date().toISOString()
       };
-      document.getElementById('payloadPreview').textContent = JSON.stringify(payload, null, 2);
       submitBtn.disabled = true;
       document.getElementById('resultText').textContent = '送出中，請稍候…';
       try {
         saveLocalRepair(payload);
         const result = await pushToApi(payload);
-        document.getElementById('resultText').innerHTML = '<span class="ok">報修已送出成功</span>｜報修單號 ' + (result.repairId || '未提供') + '。我們會依填寫資訊安排後續聯繫。';
+        const notifyText = result.notify && result.notify.success
+          ? '已同步透過官方 LINE 通知客戶。'
+          : '若客戶尚未完成 LINE 綁定，官方帳號通知會在綁定後才能主動推送。';
+        document.getElementById('resultText').innerHTML = '<span class="ok">報修已送出成功</span>｜報修單號 ' + (result.repairId || '未提供') + '。' + notifyText;
         form.reset();
         form.caseId.value = payload.caseId;
-        document.getElementById('payloadPreview').textContent = JSON.stringify(result.repair || payload, null, 2);
       } catch (error) {
         document.getElementById('resultText').textContent = '送出失敗：' + error.message + '。本機已保留一份暫存資料。';
       } finally {
