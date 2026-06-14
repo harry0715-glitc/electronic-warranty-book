@@ -21,23 +21,6 @@
     .step strong { display:block; color:var(--gold); margin-bottom:4px; }
     .quick-tools { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
     .notice-list { margin:0; padding-left:1.2em; display:grid; gap:6px; color:#f2e3c4; }
-    .query-toolbar { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
-    .query-groups { display:grid; gap:18px; }
-    .query-group { display:grid; gap:12px; }
-    .query-group h3 { margin:0; color:#ffe2a7; font-size:16px; }
-    .record-list { display:grid; gap:12px; }
-    .record-card { display:grid; gap:10px; padding:14px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); }
-    .record-head { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 12px; align-items:flex-start; }
-    .record-title { display:grid; gap:4px; }
-    .record-title strong { color:#ffe2a7; font-size:16px; }
-    .record-meta { color:var(--muted); font-size:13px; line-height:1.7; }
-    .record-badges { display:flex; flex-wrap:wrap; gap:8px; }
-    .badge { display:inline-flex; align-items:center; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700; }
-    .badge.active { background:rgba(83, 194, 116, .16); color:#b8f1c7; border:1px solid rgba(83,194,116,.28); }
-    .badge.expired { background:rgba(220, 98, 98, .14); color:#ffc3c3; border:1px solid rgba(220,98,98,.28); }
-    .badge.pending { background:rgba(209,176,122,.12); color:#ffe2a7; border:1px solid rgba(209,176,122,.22); }
-    .badge.bound { background:rgba(67, 150, 255, .14); color:#cfe1ff; border:1px solid rgba(67,150,255,.26); }
-    .badge.unbound { background:rgba(255,255,255,.06); color:#f2e3c4; border:1px solid rgba(255,255,255,.12); }
     .panel { padding:18px; }
     .panel h2 { margin:0 0 14px; color:var(--gold); font-size:18px; }
     form { display:grid; gap:14px; }
@@ -70,18 +53,8 @@
       </div>
 
       <div class="quick-tools">
-        <button class="secondary" type="button" id="openQueryPanelBtn">查詢保固書</button>
-        <button class="secondary hidden" type="button" id="closeQueryPanelBtn">收合查詢清單</button>
+        <button class="secondary" type="button" id="openQueryPageBtn">查詢保固書</button>
       </div>
-    </section>
-
-    <section class="panel hidden" id="queryPanel">
-      <h2>查詢保固書</h2>
-      <div class="query-toolbar">
-        <button class="secondary" type="button" id="refreshQueryPanelBtn">重新整理案件清單</button>
-      </div>
-      <div class="status" id="queryStatusBox">尚未載入</div>
-      <div class="query-groups" id="queryGroups"></div>
     </section>
 
     <section class="panel">
@@ -146,6 +119,10 @@
     function getBaseUrl() {
       if (window.APP_CONFIG && APP_CONFIG.publicBase) return APP_CONFIG.publicBase.replace(/\/$/, '');
       return location.origin + location.pathname.replace(/\/[^/]*$/, '');
+    }
+
+    function getQueryParam(name) {
+      return new URLSearchParams(location.search).get(name);
     }
 
     function getLiffLaunchUrl(record) {
@@ -589,110 +566,6 @@
 
     let currentEditingCaseId = '';
 
-    function formatBindingText(item) {
-      if (item.bindingBound) return `已綁定 LINE：${item.bindingDisplayName || '未命名帳號'}`;
-      return '未綁定 LINE（客戶尚未回傳手機號碼）';
-    }
-
-    function getStatusBadgeClass(statusKey) {
-      if (statusKey === 'active') return 'active';
-      if (statusKey === 'expired') return 'expired';
-      return 'pending';
-    }
-
-    async function fetchWarrantyList() {
-      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return { success: false, message: '未設定 API' };
-      return await loadJsonp(`${APP_CONFIG.apiBase}?action=listWarrantyRecords`);
-    }
-
-    function groupWarrantyItems(items) {
-      return {
-        active: (items || []).filter(item => item.statusKey === 'active'),
-        expired: (items || []).filter(item => item.statusKey === 'expired'),
-        pending: (items || []).filter(item => item.statusKey === 'pending')
-      };
-    }
-
-    function buildRecordCard(item) {
-      const card = document.createElement('div');
-      card.className = 'record-card';
-      card.innerHTML = `
-        <div class="record-head">
-          <div class="record-title">
-            <strong>${item.projectName || '未命名案件'}</strong>
-            <div class="record-meta">${item.customerName || '未提供客戶'}｜${item.address || '未提供地址'}</div>
-          </div>
-          <div class="record-badges">
-            <span class="badge ${getStatusBadgeClass(item.statusKey)}">${item.statusText || '日期未設定'}</span>
-            <span class="badge ${item.bindingBound ? 'bound' : 'unbound'}">${item.bindingBound ? 'LINE 已綁定' : 'LINE 未綁定'}</span>
-          </div>
-        </div>
-        <div class="record-meta">
-          案件編號：${item.caseId || '未提供'}<br>
-          客戶電話：${item.customerPhone || '未提供'}<br>
-          保固期間：${formatDateText(item.warrantyStart)} 至 ${formatDateText(item.warrantyEnd)}<br>
-          綁定狀態：${formatBindingText(item)}
-        </div>
-        <div class="actions">
-          <button class="secondary" type="button" data-action="edit">修改</button>
-          <button class="secondary" type="button" data-action="delete">刪除</button>
-        </div>
-      `;
-      card.querySelector('[data-action="edit"]').addEventListener('click', async () => {
-        await openRecordForEdit(item.caseId);
-      });
-      card.querySelector('[data-action="delete"]').addEventListener('click', async () => {
-        await deleteWarrantyRecord(item.caseId);
-      });
-      return card;
-    }
-
-    function renderQueryGroup(title, items) {
-      const section = document.createElement('section');
-      section.className = 'query-group';
-      const heading = document.createElement('h3');
-      heading.textContent = `${title}（${items.length}）`;
-      section.appendChild(heading);
-      const list = document.createElement('div');
-      list.className = 'record-list';
-      if (!items.length) {
-        const empty = document.createElement('div');
-        empty.className = 'status';
-        empty.textContent = '目前沒有案件';
-        list.appendChild(empty);
-      } else {
-        items.forEach(item => list.appendChild(buildRecordCard(item)));
-      }
-      section.appendChild(list);
-      return section;
-    }
-
-    function renderWarrantyQuery(items) {
-      const groups = groupWarrantyItems(items);
-      const container = document.getElementById('queryGroups');
-      container.innerHTML = '';
-      container.appendChild(renderQueryGroup('保固中案件', groups.active));
-      container.appendChild(renderQueryGroup('已過保案件', groups.expired));
-      if (groups.pending.length) container.appendChild(renderQueryGroup('尚未生效案件', groups.pending));
-    }
-
-    async function loadWarrantyQueryPanel() {
-      const panel = document.getElementById('queryPanel');
-      const statusBox = document.getElementById('queryStatusBox');
-      panel.classList.remove('hidden');
-      document.getElementById('closeQueryPanelBtn').classList.remove('hidden');
-      statusBox.textContent = '載入中｜讀取保固案件與 LINE 綁定狀態';
-      const result = await fetchWarrantyList();
-      if (!result || !result.success) {
-        statusBox.textContent = result?.message || '載入失敗';
-        document.getElementById('queryGroups').innerHTML = '';
-        return;
-      }
-      renderWarrantyQuery(result.items || []);
-      statusBox.textContent = `已載入 ${Array.isArray(result.items) ? result.items.length : 0} 筆案件｜依保固到期日排序`;
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
     function requestAdminPin(actionLabel) {
       const pin = window.prompt(`${actionLabel}需要輸入管理密碼`, '');
       if (pin === null) return null;
@@ -706,17 +579,11 @@
       document.getElementById('statusBox').textContent = '';
     }
 
-    async function openRecordForEdit(caseId) {
-      const pin = requestAdminPin('修改案件');
-      if (pin === null) return;
-      if (pin !== '521527') {
-        alert('密碼錯誤');
-        return;
-      }
+    async function loadRecordForEdit(caseId) {
       const result = await loadJsonp(`${APP_CONFIG.apiBase}?action=getWarranty&id=${encodeURIComponent(caseId)}`);
       if (!result || !result.success || !result.warranty) {
         alert(result?.message || '讀取案件失敗');
-        return;
+        return false;
       }
       const record = normalizeExistingRecord(result.warranty);
       currentEditingCaseId = record.caseId || '';
@@ -725,25 +592,17 @@
       await showSaved(record, '已載入案件，可修改後重新儲存');
       document.getElementById('statusBox').textContent = `修改模式｜案件編號 ${record.caseId}`;
       document.getElementById('resultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return true;
     }
 
-    async function deleteWarrantyRecord(caseId) {
-      const pin = requestAdminPin(`刪除案件 ${caseId}`);
+    async function openRecordForEdit(caseId) {
+      const pin = requestAdminPin('修改案件');
       if (pin === null) return;
-      const confirmed = window.confirm(`確定要刪除案件 ${caseId} 嗎？此動作無法復原。`);
-      if (!confirmed) return;
-      const result = await loadJsonp(`${APP_CONFIG.apiBase}?action=deleteWarranty&caseId=${encodeURIComponent(caseId)}&pin=${encodeURIComponent(pin)}`);
-      if (!result || !result.success) {
-        alert(result?.message || '刪除失敗');
+      if (pin !== '521527') {
+        alert('密碼錯誤');
         return;
       }
-      if (currentEditingCaseId === caseId) {
-        currentEditingCaseId = '';
-        form.reset();
-        document.getElementById('resultPanel').classList.add('hidden');
-      }
-      alert(`已刪除案件 ${caseId}`);
-      await loadWarrantyQueryPanel();
+      await loadRecordForEdit(caseId);
     }
 
     async function showSaved(record, modeText) {
@@ -823,20 +682,10 @@
     }
 
     const form = document.getElementById('warrantyForm');
-    const queryPanel = document.getElementById('queryPanel');
     const amountInput = form.elements.amount;
 
-    document.getElementById('openQueryPanelBtn').addEventListener('click', async () => {
-      await loadWarrantyQueryPanel();
-    });
-
-    document.getElementById('closeQueryPanelBtn').addEventListener('click', () => {
-      queryPanel.classList.add('hidden');
-      document.getElementById('closeQueryPanelBtn').classList.add('hidden');
-    });
-
-    document.getElementById('refreshQueryPanelBtn').addEventListener('click', async () => {
-      await loadWarrantyQueryPanel();
+    document.getElementById('openQueryPageBtn').addEventListener('click', () => {
+      location.href = 'query.html';
     });
 
     amountInput.addEventListener('blur', () => {
@@ -871,7 +720,6 @@
       currentEditingCaseId = record.caseId || '';
       saveRecord(record);
       await showSaved(record, isEditing ? '已更新案件並寫入後端' : '已建立案件並寫入後端');
-      await loadWarrantyQueryPanel().catch(() => {});
     });
 
     document.getElementById('saveOnlyBtn').addEventListener('click', async () => {
@@ -890,7 +738,28 @@
       currentEditingCaseId = record.caseId || '';
       saveRecord(record);
       await showSaved(record, isEditing ? '已更新案件並寫入後端' : '已儲存草稿並寫入後端');
-      await loadWarrantyQueryPanel().catch(() => {});
+    });
+
+    async function handleIncomingEditRequest() {
+      const caseId = String(getQueryParam('editCaseId') || '').trim();
+      if (!caseId) return;
+      const stagedCaseId = sessionStorage.getItem('warranty_admin_edit_case_id');
+      if (stagedCaseId === caseId) {
+        sessionStorage.removeItem('warranty_admin_edit_case_id');
+        await loadRecordForEdit(caseId);
+        return;
+      }
+      const pin = requestAdminPin('修改案件');
+      if (pin === null) return;
+      if (pin !== (window.APP_CONFIG?.adminSendPin || '521527')) {
+        alert('密碼錯誤');
+        return;
+      }
+      await loadRecordForEdit(caseId);
+    }
+
+    handleIncomingEditRequest().catch((error) => {
+      console.warn('handleIncomingEditRequest failed', error);
     });
   </script>
 </body>
