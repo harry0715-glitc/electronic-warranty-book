@@ -173,13 +173,14 @@
     }
 
     function buildBindingGuide(record) {
-      const oaUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || '';
+      const oaUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || 'https://line.me/R/ti/p/@yhh1711p';
       return [
-        oaUrl ? `請先加入官方 LINE：${oaUrl}` : '請先加入官方 LINE。',
-        '加入後，請直接回傳您自己的手機號碼。',
-        '請回傳建立保固書時填寫的同一支手機號碼，例如：0912345678',
+        '本公司採電子保固卡',
+        `請先加入官方 LINE：${oaUrl}`,
+        '加入後，請直接訊息文字回傳您自己的手機號碼。',
+        '例如：0912345678',
         '謝謝您。'
-      ].filter(Boolean).join('\n');
+      ].join('\n');
     }
 
     function normalizeAddress(value) {
