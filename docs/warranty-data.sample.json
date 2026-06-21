@@ -1,0 +1,21 @@
+{
+  "caseId": "WG-2026-001",
+  "projectName": "楠梓 四季心 B7/6F",
+  "customerName": "王先生",
+  "customerPhone": "0912-345-678",
+  "address": "高雄市楠梓區右昌街 358 號 6 樓之 7",
+  "scope": "如契約書（報價單內容）",
+  "completionDate": "2026-06-13",
+  "amount": "新台幣 陸拾壹萬伍仟 元整（615,000 元）",
+  "acceptanceDate": "2026-06-13",
+  "warrantyStart": "2026-06-13",
+  "warrantyEnd": "2027-06-12",
+  "warrantyStatement": "上列工程自驗收合格之日起計算，在保固期內，如發生局部或全部損壞時，本公司願負完全修復責任（如遇天災及不可抗拒因素或人為之故意行為，則不在此限），並拋棄先訴抗辯權，僅此聲明。",
+  "issuer": {
+    "company": "楓根室內裝修設計有限公司",
+    "responsiblePerson": "林 榮 祥",
+    "address": "高雄市楠梓區清成街 31 號"
+  },
+  "repairUrl": "https://line.me/R/ti/p/@yhh1711p",
+  "warrantyUrl": "index.html?id=WG-2026-001"
+}

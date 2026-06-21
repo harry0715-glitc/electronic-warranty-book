@@ -102,9 +102,7 @@
         </div>
         <div class="small">LINE 綁定狀態（客戶需先加入 OA 並傳送手機號碼）</div>
         <div class="status" id="lineBindingStatus">尚未查詢</div>
-        <div class="small">官方帳號發送碼</div>
-        <input id="lineSendPin" value="521527" placeholder="輸入管理發送碼後送出資訊卡" />
-        <div class="actions">
+                <div class="actions">
           <button class="secondary" type="button" id="copyWarrantyLinkBtn">複製保固書連結</button>
           <button class="secondary" type="button" id="copyBindGuideBtn">複製綁定說明</button>
           <button class="secondary" type="button" id="refreshBindingBtn">更新綁定狀態</button>
@@ -127,8 +125,9 @@
 
     function getLiffLaunchUrl(record) {
       const liffId = String(window.APP_CONFIG?.liffId || '').trim();
-      if (!liffId) return '';
-      const params = new URLSearchParams({ id: record.caseId || '' });
+      const token = String(record?.publicToken || '').trim();
+      if (!liffId || !token) return '';
+      const params = new URLSearchParams({ token });
       return `https://liff.line.me/${encodeURIComponent(liffId)}?${params.toString()}`;
     }
 
@@ -300,7 +299,8 @@
           address: String(record.issuer?.address || record.issuerAddress || '').trim()
         },
         repairUrl: String(record.repairUrl || '').trim(),
-        warrantyUrl: String(record.warrantyUrl || '').trim()
+        warrantyUrl: String(record.warrantyUrl || '').trim(),
+        publicToken: String(record.publicToken || '').trim()
       };
       normalized.statusText = String(record.statusText || deriveStatusText(normalized.warrantyStart, normalized.warrantyEnd)).trim() || '日期未設定';
       if (!normalized.repairUrl) normalized.repairUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || `${baseUrl}/repair.html?id=${encodeURIComponent(normalized.caseId)}`;
@@ -492,8 +492,9 @@
           responsiblePerson: form.issuerResponsiblePerson.value.trim(),
           address: form.issuerAddress.value.trim()
         },
-        repairUrl: (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || `${baseUrl}/repair.html`,
-        warrantyUrl: ''
+        repairUrl: '',
+        warrantyUrl: '',
+        publicToken: ''
       };
     }
 
@@ -504,22 +505,65 @@
       return record;
     }
 
+    function getStoredAdminApiKey() {
+      return String(sessionStorage.getItem('warranty_admin_api_key') || '').trim();
+    }
+
+    function setStoredAdminApiKey(value) {
+      const normalized = String(value || '').trim();
+      if (normalized) sessionStorage.setItem('warranty_admin_api_key', normalized);
+      else sessionStorage.removeItem('warranty_admin_api_key');
+      return normalized;
+    }
+
+    function requestAdminApiKey(actionLabel, force = false) {
+      if (!force) {
+        const stored = getStoredAdminApiKey();
+        if (stored) return stored;
+      }
+      const input = window.prompt(`${actionLabel}需要輸入管理 API 金鑰`, force ? '' : getStoredAdminApiKey());
+      if (input === null) return null;
+      return setStoredAdminApiKey(input);
+    }
+
+    function buildAdminUrl(action, params = {}) {
+      const adminKey = requestAdminApiKey(action);
+      if (!adminKey) throw new Error('未提供管理 API 金鑰');
+      const search = new URLSearchParams({ action, adminKey });
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        search.set(key, String(value));
+      });
+      return `${APP_CONFIG.apiBase}?${search.toString()}`;
+    }
+
+    async function loadAdminJsonp(action, params = {}, retry = true) {
+      const url = buildAdminUrl(action, params);
+      try {
+        return await loadJsonp(url);
+      } catch (error) {
+        if (retry && /管理 API 驗證失敗/.test(String(error && error.message || ''))) {
+          setStoredAdminApiKey('');
+          requestAdminApiKey(action, true);
+          return await loadAdminJsonp(action, params, false);
+        }
+        throw error;
+      }
+    }
+
     async function fetchLineBindingByPhone(phone) {
       if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return null;
       const normalized = normalizePhone(phone);
       if (!normalized) return { success: false, bound: false, message: '缺少手機號碼' };
-      const url = `${APP_CONFIG.apiBase}?action=getLineBindingByPhone&phone=${encodeURIComponent(normalized)}`;
-      return await loadJsonp(url);
+      return await loadAdminJsonp('getLineBindingByPhone', { phone: normalized });
     }
 
-    async function sendWarrantyCardViaApi(record, pin) {
+    async function sendWarrantyCardViaApi(record) {
       if (!window.APP_CONFIG || !APP_CONFIG.apiBase) throw new Error('未設定 API');
       const normalized = normalizePhone(record.customerPhone || '');
-      const params = new URLSearchParams({
-        action: 'sendWarrantyCard',
+      const params = {
         phone: normalized,
         caseId: record.caseId || '',
-        pin: pin || '',
         projectName: record.projectName || '',
         customerName: record.customerName || '',
         customerPhone: record.customerPhone || '',
@@ -536,9 +580,8 @@
         issuerAddress: record.issuer?.address || '',
         repairUrl: record.repairUrl || '',
         warrantyUrl: record.warrantyUrl || ''
-      });
-      const url = `${APP_CONFIG.apiBase}?${params.toString()}`;
-      return await loadJsonp(url);
+      };
+      return await loadAdminJsonp('sendWarrantyCard', params);
     }
 
     function renderLineBindingStatus(bindingResult, record) {
@@ -567,12 +610,6 @@
 
     let currentEditingCaseId = '';
 
-    function requestAdminPin(actionLabel) {
-      const pin = window.prompt(`${actionLabel}需要輸入管理密碼`, '');
-      if (pin === null) return null;
-      return String(pin || '').trim();
-    }
-
     function hideResultPanel() {
       document.getElementById('resultPanel').classList.add('hidden');
       document.getElementById('statusBox').textContent = '';
@@ -585,7 +622,7 @@
     }
 
     async function loadRecordForEdit(caseId) {
-      const result = await loadJsonp(`${APP_CONFIG.apiBase}?action=getWarranty&id=${encodeURIComponent(caseId)}`);
+      const result = await loadAdminJsonp('getWarrantyById', { caseId });
       if (!result || !result.success || !result.warranty) {
         alert(result?.message || '讀取案件失敗');
         return false;
@@ -601,12 +638,8 @@
     }
 
     async function openRecordForEdit(caseId) {
-      const pin = requestAdminPin('修改案件');
-      if (pin === null) return;
-      if (pin !== '521527') {
-        alert('密碼錯誤');
-        return;
-      }
+      const adminKey = requestAdminApiKey('修改案件');
+      if (!adminKey) return;
       await loadRecordForEdit(caseId);
     }
 
@@ -633,14 +666,9 @@
         await refreshLineBindingStatus(record, true);
       };
       document.getElementById('sendWarrantyCardBtn').onclick = async () => {
-        const pin = document.getElementById('lineSendPin').value.trim();
-        if (!pin) {
-          alert('請先輸入官方帳號發送碼');
-          return;
-        }
         document.getElementById('statusBox').textContent = `送出中｜案件編號 ${record.caseId}`;
         try {
-          const result = await sendWarrantyCardViaApi(record, pin);
+          const result = await sendWarrantyCardViaApi(record);
           if (!result || !result.success) {
             alert(result?.message || '送出失敗');
             document.getElementById('statusBox').textContent = `送出失敗｜案件編號 ${record.caseId}`;
@@ -658,8 +686,7 @@
 
     async function pushToApi(record) {
       if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return { success: false, message: '未設定 API' };
-      const params = new URLSearchParams({
-        action: 'createWarranty',
+      const params = {
         caseId: record.caseId || '',
         projectName: record.projectName || '',
         customerName: record.customerName || '',
@@ -676,10 +703,11 @@
         issuerResponsiblePerson: record.issuer?.responsiblePerson || '',
         issuerAddress: record.issuer?.address || '',
         repairUrl: record.repairUrl || '',
-        warrantyUrl: record.warrantyUrl || ''
-      });
+        warrantyUrl: record.warrantyUrl || '',
+        publicToken: record.publicToken || ''
+      };
       try {
-        return await loadJsonp(`${APP_CONFIG.apiBase}?${params.toString()}`);
+        return await loadAdminJsonp('createWarranty', params);
       } catch (error) {
         console.warn('pushToApi failed', error);
         return { success: false, message: error.message || 'pushToApi failed' };
@@ -774,12 +802,8 @@
         await loadRecordForEdit(caseId);
         return;
       }
-      const pin = requestAdminPin('修改案件');
-      if (pin === null) return;
-      if (pin !== (window.APP_CONFIG?.adminSendPin || '521527')) {
-        alert('密碼錯誤');
-        return;
-      }
+      const adminKey = requestAdminApiKey('修改案件');
+      if (!adminKey) return;
       await loadRecordForEdit(caseId);
     }
 

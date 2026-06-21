@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>保固報修</title>
+  <style>
+    @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Rg.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Bd.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+    :root { --bg:#141210; --panel:#1f1b18; --gold:#d1b07a; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(209,176,122,.22); --ok:#6fca88; --warn:#f2e3c4; }
+    * { box-sizing: border-box; }
+    html,body { margin:0; min-height:100%; background:linear-gradient(180deg,#0f0d0c,#181410 48%,#120f0d); color:var(--ink); font-family:"LINE Seed TW","Noto Sans TC","Microsoft JhengHei",sans-serif; }
+    body { padding:20px 14px 40px; }
+    .wrap { width:min(760px,100%); margin:0 auto; display:grid; gap:18px; }
+    .panel { background:linear-gradient(180deg,rgba(37,31,26,.96),rgba(20,17,15,.98)); border:1px solid var(--line); border-radius:22px; box-shadow:0 20px 60px rgba(0,0,0,.28); padding:20px; }
+    h1,h2 { margin:0 0 12px; color:var(--gold); }
+    p,.small { color:var(--muted); line-height:1.75; margin:0; }
+    .small { font-size:13px; }
+    .summary { display:grid; gap:10px; margin-top:12px; }
+    .summary-item { padding:12px 14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.07); }
+    .summary-item strong { display:block; color:var(--gold); margin-bottom:4px; }
+    form { display:grid; gap:12px; }
+    label { display:grid; gap:6px; font-size:13px; color:var(--muted); }
+    input, textarea { width:100%; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:#13110f; color:var(--ink); padding:12px 13px; font:inherit; }
+    textarea { min-height:120px; resize:vertical; }
+    button { border:0; border-radius:12px; padding:12px 16px; font:inherit; font-weight:700; cursor:pointer; background:linear-gradient(180deg,#ecd7ac,#c89f60); color:#22190f; }
+    button[disabled] { opacity:.65; cursor:wait; }
+    .status { padding:14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.07); color:var(--warn); }
+    .ok { color:var(--ok); }
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="panel">
+      <h1>保固報修</h1>
+      <p>此頁提供文字版報修登記。送出後會直接寫入 Google Sheet 的 <strong>Repairs</strong> 工作表；未來若要增加照片上傳，可再把照片改存 Google Drive，並在報修單保留附件欄位。</p>
+      <div class="summary" id="caseSummary">
+        <div class="summary-item"><strong>案件編號</strong><span id="summaryCaseId">讀取中…</span></div>
+        <div class="summary-item"><strong>案件名稱</strong><span id="summaryProjectName">讀取中…</span></div>
+        <div class="summary-item"><strong>客戶名稱</strong><span id="summaryCustomerName">讀取中…</span></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>報修表單</h2>
+      <form id="repairForm">
+        <label>案件編號<input name="caseId" id="caseId" readonly /></label>
+        <label>聯絡人<input name="contactName" placeholder="請輸入聯絡人姓名" required /></label>
+        <label>聯絡電話<input name="phone" placeholder="請輸入聯絡電話" required /></label>
+        <label>問題類型<input name="issueType" placeholder="例如：木作鬆脫 / 五金故障 / 滲水" required /></label>
+        <label>希望聯絡時段<input name="preferredContactTime" placeholder="例如：平日 14:00 後 / 週六上午" /></label>
+        <label>問題描述<textarea name="description" placeholder="請描述問題、發生位置、目前狀況，方便安排後續處理" required></textarea></label>
+        <button type="submit" id="submitBtn">送出報修</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>送出結果</h2>
+      <div class="status" id="resultText">尚未送出。</div>
+    </section>
+  </div>
+
+  <script src="api-config.js"></script>
+  <script>
+    function getMergedQueryParams() {
+      const params = new URLSearchParams(location.search || '');
+      const liffState = params.get('liff.state') || '';
+      if (liffState) {
+        const rawState = String(liffState).trim();
+        const normalizedState = rawState.startsWith('?') ? rawState.slice(1) : rawState.replace(/^\//, '');
+        const nested = new URLSearchParams(normalizedState);
+        nested.forEach((value, key) => {
+          if (!params.has(key)) params.set(key, value);
+        });
+      }
+      return params;
+    }
+
+    function getToken() {
+      return String(getMergedQueryParams().get('token') || '').trim();
+    }
+
+    function saveLocalRepair(payload) {
+      const raw = localStorage.getItem('repair_requests');
+      const items = raw ? JSON.parse(raw) : [];
+      items.push(payload);
+      localStorage.setItem('repair_requests', JSON.stringify(items));
+    }
+
+    async function loadWarranty(token) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) throw new Error('api-config.js 尚未設定 apiBase');
+      const callbackName = '__repairWarrantyCallback_' + Date.now();
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        window[callbackName] = (payload) => {
+          delete window[callbackName];
+          script.remove();
+          if (payload && payload.success && payload.warranty) resolve(payload.warranty);
+          else reject(new Error(payload && payload.message ? payload.message : '查無案件資料'));
+        };
+        script.onerror = () => {
+          delete window[callbackName];
+          script.remove();
+          reject(new Error('無法讀取案件資料'));
+        };
+        script.src = APP_CONFIG.apiBase + '?action=getWarrantyByToken&token=' + encodeURIComponent(token) + '&callback=' + callbackName;
+        document.body.appendChild(script);
+      });
+    }
+
+    async function pushToApi(payload) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) throw new Error('api-config.js 尚未設定 apiBase');
+      const callbackName = '__repairCreateCallback_' + Date.now();
+      const params = new URLSearchParams({
+        action: 'createRepair',
+        token: payload.token || '',
+        contactName: payload.contactName || '',
+        phone: payload.phone || '',
+        issueType: payload.issueType || '',
+        preferredContactTime: payload.preferredContactTime || '',
+        description: payload.description || '',
+        source: payload.source || '',
+        photoUploadStatus: payload.photoUploadStatus || '',
+        createdAt: payload.createdAt || '',
+        callback: callbackName
+      });
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        window[callbackName] = (result) => {
+          delete window[callbackName];
+          script.remove();
+          if (!result || !result.success) {
+            reject(new Error(result && result.message ? result.message : '報修送出失敗'));
+            return;
+          }
+          resolve(result);
+        };
+        script.onerror = () => {
+          delete window[callbackName];
+          script.remove();
+          reject(new Error('無法送出報修資料'));
+        };
+        script.src = APP_CONFIG.apiBase + '?' + params.toString();
+        document.body.appendChild(script);
+      });
+    }
+
+    function setSummary(warranty) {
+      document.getElementById('summaryCaseId').textContent = warranty.caseId || '未提供';
+      document.getElementById('summaryProjectName').textContent = warranty.projectName || '未提供';
+      document.getElementById('summaryCustomerName').textContent = warranty.customerName || '未提供';
+    }
+
+    async function init() {
+      const token = getToken();
+      if (!token) {
+        document.getElementById('resultText').textContent = '缺少保固 token，請從新版保固書連結重新開啟報修頁。';
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('summaryCaseId').textContent = '未指定';
+        document.getElementById('summaryProjectName').textContent = '未指定';
+        document.getElementById('summaryCustomerName').textContent = '未指定';
+        return;
+      }
+      try {
+        const warranty = await loadWarranty(token);
+        document.getElementById('caseId').value = warranty.caseId || '';
+        setSummary(warranty);
+      } catch (error) {
+        document.getElementById('resultText').textContent = '案件資料讀取失敗：' + error.message;
+      }
+    }
+
+    document.getElementById('repairForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const submitBtn = document.getElementById('submitBtn');
+      const payload = {
+        caseId: form.caseId.value.trim(),
+        token: getToken(),
+        contactName: form.contactName.value.trim(),
+        phone: form.phone.value.trim(),
+        issueType: form.issueType.value.trim(),
+        preferredContactTime: form.preferredContactTime.value.trim(),
+        description: form.description.value.trim(),
+        source: 'repair-form',
+        photoUploadStatus: 'reserved_for_future_drive_upload',
+        createdAt: new Date().toISOString()
+      };
+      submitBtn.disabled = true;
+      document.getElementById('resultText').textContent = '送出中，請稍候…';
+      try {
+        saveLocalRepair(payload);
+        const result = await pushToApi(payload);
+        const notifyText = result.notify && result.notify.success
+          ? '已同步透過官方 LINE 通知客戶。'
+          : '若客戶尚未完成 LINE 綁定，官方帳號通知會在綁定後才能主動推送。';
+        document.getElementById('resultText').innerHTML = '<span class="ok">報修已送出成功</span>｜報修單號 ' + (result.repairId || '未提供') + '。' + notifyText;
+        form.reset();
+        form.caseId.value = payload.caseId;
+      } catch (error) {
+        document.getElementById('resultText').textContent = '送出失敗：' + error.message + '。本機已保留一份暫存資料。';
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    init().catch((error) => {
+      document.getElementById('resultText').textContent = '初始化失敗：' + error.message;
+    });
+  </script>
+</body>
+</html>

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>楓根室內裝修設計有限公司｜電子保固書</title>
-  <meta name="description" content="電子保固書動態顯示頁，可依案件 ID 顯示完整保固內容，並提供報修與 LINE 分享入口。" />
+  <meta name="description" content="電子保固書動態顯示頁，採 token 化連結顯示完整保固內容，並提供報修入口。" />
   <style>
     @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Rg.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
     @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Bd.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
@@ -154,7 +154,7 @@
       } catch (error) { return null; }
     }
 
-    function loadJsonp(caseId) {
+    function loadJsonp(token) {
       return new Promise((resolve, reject) => {
         const apiBase = window.APP_CONFIG && APP_CONFIG.apiBase;
         if (!apiBase) return reject(new Error('未設定 API'));
@@ -166,7 +166,7 @@
           else reject(new Error(payload && payload.message ? payload.message : 'API 無資料'));
         };
         script.onerror = () => { delete window[callbackName]; script.remove(); reject(new Error('無法讀取 Apps Script 資料')); };
-        script.src = apiBase + '?action=getWarranty&id=' + encodeURIComponent(caseId) + '&callback=' + callbackName;
+        script.src = apiBase + '?action=getWarrantyByToken&token=' + encodeURIComponent(token) + '&callback=' + callbackName;
         document.body.appendChild(script);
       });
     }
@@ -297,22 +297,22 @@
     }
 
     async function main() {
-      const caseId = getQueryParam('id');
+      const token = String(getQueryParam('token') || '').trim();
+      const caseId = String(getQueryParam('id') || '').trim();
       const allowLocalDraft = getQueryParam('from') === 'admin' || getQueryParam('draft') === '1';
       try {
-        if (caseId && window.APP_CONFIG && APP_CONFIG.apiBase) {
-          try {
-            const remote = await loadJsonp(caseId);
-            return render(remote, 'Apps Script / Google Sheet');
-          } catch (remoteError) {
-            if (!allowLocalDraft) throw remoteError;
-          }
+        if (token && window.APP_CONFIG && APP_CONFIG.apiBase) {
+          const remote = await loadJsonp(token);
+          return render(remote, 'Apps Script / Google Sheet');
         }
         if (caseId && allowLocalDraft) {
           const local = readLocalCase(caseId);
           if (local) return render(local, '本機管理頁草稿 / localStorage');
         }
-        if (caseId) {
+        if (caseId && !allowLocalDraft) {
+          throw new Error('此連結已改為 token 化，請向管理者索取新版保固書連結');
+        }
+        if (token || caseId) {
           throw new Error('查無此案件資料');
         }
         const sample = await loadFallbackSample();

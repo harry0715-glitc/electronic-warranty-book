@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>楓根室內裝修設計有限公司｜電子保固書</title>
+  <meta name="description" content="電子保固書動態顯示頁，採 token 化連結顯示完整保固內容，並提供報修入口。" />
+  <style>
+    @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Rg.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Bd.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+    :root {
+      --paper:#fffdfa; --ink:#1d1814; --ink-soft:#4e4740; --line:#847b72; --line-soft:rgba(132,123,114,0.26);
+      --gold:#9b7a43; --shadow:0 24px 60px rgba(38,28,20,0.12); --radius-lg:22px; --radius-md:14px; --paper-width:860px;
+      --font-ui:"LINE Seed TW","Noto Serif TC","PMingLiU","PingFang TC","Microsoft JhengHei",serif;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin:0; min-height:100%; color:var(--ink); font-family:var(--font-ui);
+      background:radial-gradient(circle at top, rgba(155,122,67,0.08), transparent 22%), linear-gradient(180deg, #f4f1eb 0%, #ebe6de 100%);
+    }
+    body { padding:20px 14px 40px; }
+    .page-wrap { width:min(1120px,100%); margin:0 auto; display:grid; gap:20px; }
+    .status-chip { display:inline-flex; align-items:center; gap:10px; padding:10px 18px; border-radius:999px; border:1px solid rgba(93,138,71,0.2); background:rgba(93,138,71,0.08); color:#406a31; font-weight:700; font-size:16px; line-height:1; }
+    .status-chip::before { content:""; width:10px; height:10px; border-radius:50%; background:#5d8a47; box-shadow:0 0 0 5px rgba(93,138,71,0.12); }
+    .status-chip.status-expired { border-color:rgba(181,65,65,0.2); background:rgba(181,65,65,0.08); color:#9f2f2f; }
+    .status-chip.status-expired::before { background:#b54141; box-shadow:0 0 0 5px rgba(181,65,65,0.12); }
+    .status-chip.status-pending { border-color:rgba(174,131,46,0.2); background:rgba(174,131,46,0.1); color:#8c6720; }
+    .status-chip.status-pending::before { background:#b1852b; box-shadow:0 0 0 5px rgba(174,131,46,0.12); }
+    .status-chip.status-large { padding:14px 22px; font-size:22px; gap:12px; }
+    .status-chip.status-large::before { width:12px; height:12px; }
+    .paper { width:min(var(--paper-width),100%); margin:0 auto; background:var(--paper); border:1.25px solid var(--line); box-shadow:var(--shadow); }
+    .paper-title { text-align:center; padding:28px 24px 24px; border-bottom:1px solid var(--line); }
+    .paper-title h1 { margin:0; font-size:clamp(34px,5vw,54px); letter-spacing:0.18em; font-weight:400; }
+    .meta-table { display:grid; grid-template-columns:188px 1fr; }
+    .meta-row { display:contents; }
+    .meta-label,.meta-value { min-height:84px; border-bottom:1px solid var(--line); display:flex; align-items:center; padding:18px; font-size:18px; line-height:1.65; }
+    .meta-label { justify-content:center; text-align:center; border-right:1px solid var(--line); letter-spacing:0.12em; background:rgba(0,0,0,0.008); white-space:nowrap; }
+    .meta-value strong { font-size:20px; font-weight:700; letter-spacing:0.03em; }
+    .statement { border-bottom:1px solid var(--line); padding:18px 34px 26px; }
+    .statement p { margin:0; font-size:18px; line-height:2.05; text-indent:2em; letter-spacing:0.04em; }
+    .issuer { display:grid; grid-template-columns:1fr auto; gap:24px; align-items:end; padding:26px 34px; }
+    .issuer-lines { display:grid; gap:18px; font-size:18px; line-height:1.7; }
+    .issuer-line strong { font-weight:400; letter-spacing:0.08em; }
+    .seals { display:flex; align-items:end; gap:16px; padding-right:20px; flex-wrap:wrap; justify-content:center; }
+    .seal-image { display:block; width:229px; max-width:100%; height:auto; object-fit:contain; }
+    .digital-grid { width:min(var(--paper-width),100%); margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+    .card { background:rgba(255,255,255,0.78); border:1px solid var(--line-soft); border-radius:var(--radius-lg); box-shadow:0 10px 30px rgba(38,28,20,0.06); padding:18px; }
+    .card h2 { margin:0 0 12px; font-size:18px; color:#6f5528; letter-spacing:0.08em; }
+    .card p { margin:0; color:var(--ink-soft); line-height:1.8; font-size:14px; }
+    .list { display:grid; gap:10px; }
+    .list-item { padding:12px 14px; border:1px solid rgba(132,123,114,0.18); border-radius:var(--radius-md); background:rgba(255,255,255,0.72); }
+    .list-item strong { display:block; margin-bottom:4px; font-size:15px; }
+    .list-item span { font-size:13px; line-height:1.7; color:var(--ink-soft); }
+    .list-item-wide { padding-top:14px; padding-bottom:14px; }
+    .action-row { display:grid; grid-template-columns:1fr; gap:10px; margin-top:14px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; min-height:46px; border-radius:12px; text-decoration:none; font-size:14px; font-weight:700; letter-spacing:0.05em; transition:transform .15s ease, box-shadow .15s ease; border:0; cursor:pointer; }
+    .btn:hover { transform:translateY(-1px); }
+    .btn-primary { background:linear-gradient(180deg, #aa8660 0%, #8d6a40 100%); color:#fffaf3; box-shadow:0 8px 20px rgba(141,106,64,0.18); }
+    .btn-secondary { border:1px solid rgba(132,123,114,0.22); color:var(--ink); background:rgba(255,255,255,0.74); }
+    .hint { margin-top:10px; font-size:12px; color:rgba(78,71,64,0.78); line-height:1.8; }
+    .footer-note { width:min(var(--paper-width),100%); margin:0 auto; color:rgba(78,71,64,0.82); font-size:12px; line-height:1.8; padding:0 6px; }
+    .loading,.error-box { width:min(var(--paper-width),100%); margin:0 auto; padding:18px; border-radius:16px; background:rgba(255,255,255,0.75); border:1px solid rgba(132,123,114,0.2); }
+    .hidden { display:none !important; }
+    @media (max-width:900px) { .meta-table { grid-template-columns:150px 1fr; } .meta-label,.meta-value,.statement p,.issuer-lines { font-size:16px; } .digital-grid { grid-template-columns:1fr; } }
+    @media (max-width:640px) {
+      body { padding:12px 8px 28px; }
+      .paper-title { padding:20px 12px 18px; }
+      .paper-title h1 { letter-spacing:0.1em; }
+      .meta-table { grid-template-columns:112px 1fr; }
+      .meta-label,.meta-value { min-height:68px; padding:12px 10px; font-size:14px; line-height:1.55; }
+      .meta-value strong { font-size:16px; }
+      .statement { padding:14px 16px 18px; }
+      .statement p { font-size:15px; line-height:1.9; }
+      .issuer { grid-template-columns:1fr; gap:18px; padding:18px 16px 20px; }
+      .issuer-lines { gap:12px; font-size:15px; }
+      .seals { justify-content:flex-start; padding-right:0; }
+      .seal-image { width:185px; }
+      .status-chip.status-large { width:100%; justify-content:center; font-size:19px; }
+      .card { padding:14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div id="loadingBox" class="loading">正在載入保固書資料…</div>
+    <div id="errorBox" class="error-box hidden"></div>
+
+    <section class="digital-grid hidden" id="digitalGrid">
+      <article class="card">
+        <h2>案件摘要</h2>
+        <div class="list" id="summaryList"></div>
+      </article>
+      <article class="card">
+        <h2>服務資訊</h2>
+        <p>如需售後協助，可直接透過下方按鈕聯繫報修。</p>
+        <div class="action-row">
+          <a id="repairLink" class="btn btn-primary" href="#">我要報修</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="paper hidden" id="paperRoot" aria-label="電子保固書主文件">
+      <header class="paper-title"><h1 id="docTitle">保固切結書</h1></header>
+      <div class="meta-table" id="metaTable"></div>
+      <section class="statement"><p id="warrantyStatement"></p></section>
+      <section class="issuer">
+        <div class="issuer-lines" id="issuerLines"></div>
+        <div class="seals">
+          <img class="seal-image" id="sealImage" src="assets/images/company-seals.png" alt="楓根室內裝修設計有限公司與林榮祥印章" />
+        </div>
+      </section>
+    </section>
+
+    <div class="footer-note hidden" id="footerNote"></div>
+  </div>
+
+  <script src="api-config.js?v=20260613-2"></script>
+  <script>
+    const FIELDS = [
+      { label: '案件名稱', key: 'projectName' },
+      { label: '工程地點', key: 'address' },
+      { label: '承攬範圍', key: 'scope' },
+      { label: '竣工日期', key: 'completionDate' },
+      { label: '結算金額', key: 'amount' },
+      { label: '驗收合格日期', key: 'acceptanceDate', emphasize: true },
+      { label: '保固日期', key: 'warrantyRange', emphasize: true }
+    ];
+    let currentRecord = null;
+
+    function getMergedQueryParams() {
+      const params = new URLSearchParams(location.search || '');
+      const liffState = params.get('liff.state') || '';
+      if (liffState) {
+        const rawState = String(liffState).trim();
+        const normalizedState = rawState.startsWith('?') ? rawState.slice(1) : rawState.replace(/^\//, '');
+        const nested = new URLSearchParams(normalizedState);
+        nested.forEach((value, key) => {
+          if (!params.has(key)) params.set(key, value);
+        });
+      }
+      return params;
+    }
+
+    function getQueryParam(name) {
+      return getMergedQueryParams().get(name);
+    }
+
+    function readLocalCase(caseId) {
+      try {
+        const raw = localStorage.getItem('warranty_cases');
+        if (!raw) return null;
+        const cases = JSON.parse(raw);
+        return cases[caseId] || null;
+      } catch (error) { return null; }
+    }
+
+    function loadJsonp(token) {
+      return new Promise((resolve, reject) => {
+        const apiBase = window.APP_CONFIG && APP_CONFIG.apiBase;
+        if (!apiBase) return reject(new Error('未設定 API'));
+        const callbackName = '__warrantyCallback_' + Date.now();
+        const script = document.createElement('script');
+        window[callbackName] = (payload) => {
+          delete window[callbackName]; script.remove();
+          if (payload && payload.success && payload.warranty) resolve(payload.warranty);
+          else reject(new Error(payload && payload.message ? payload.message : 'API 無資料'));
+        };
+        script.onerror = () => { delete window[callbackName]; script.remove(); reject(new Error('無法讀取 Apps Script 資料')); };
+        script.src = apiBase + '?action=getWarrantyByToken&token=' + encodeURIComponent(token) + '&callback=' + callbackName;
+        document.body.appendChild(script);
+      });
+    }
+
+    async function loadFallbackSample() {
+      const response = await fetch('warranty-data.sample.json');
+      if (!response.ok) throw new Error('無法讀取樣板資料');
+      return response.json();
+    }
+
+    function normalizeIsoDateText(value) {
+      const text = String(value || '').trim();
+      const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+      if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+      const parsed = new Date(text);
+      if (Number.isNaN(parsed.getTime())) return '';
+      const year = parsed.getFullYear();
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      const day = String(parsed.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatDisplayDate(isoText) {
+      const normalized = normalizeIsoDateText(isoText);
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
+      if (!match) return isoText || '未設定';
+      return `${match[1]}/${match[2]}/${match[3]}`;
+    }
+
+    function deriveStatusText(start, end) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const startDateText = normalizeIsoDateText(start);
+      const endDateText = normalizeIsoDateText(end);
+      const startDate = new Date(startDateText + 'T00:00:00');
+      const endDate = new Date(endDateText + 'T00:00:00');
+      if (!startDateText || !endDateText || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return '日期未設定';
+      if (today < startDate) return '尚未生效';
+      if (today > endDate) return '已過保';
+      return '保固生效中';
+    }
+
+    function makeWarrantyRange(data) {
+      return data.warrantyStart && data.warrantyEnd ? (formatDisplayDate(data.warrantyStart) + ' 至 ' + formatDisplayDate(data.warrantyEnd)) : '未設定';
+    }
+
+    function toAbsoluteUrl(url) {
+      try {
+        return new URL(url || location.href, location.href).toString();
+      } catch (error) {
+        return location.href;
+      }
+    }
+
+    function getCanonicalRepairUrl(caseId) {
+      return toAbsoluteUrl('repair.html?id=' + encodeURIComponent(caseId || ''));
+    }
+
+    function getStatusClass(statusText) {
+      if (statusText === '已過保') return 'status-expired';
+      if (statusText === '尚未生效' || statusText === '日期未設定') return 'status-pending';
+      return 'status-active';
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function renderSummaryItem(label, value, options = {}) {
+      const content = options.html ? value : '<span>' + escapeHtml(value || '—') + '</span>';
+      return '<div class="list-item' + (options.wide ? ' list-item-wide' : '') + '"><strong>' + escapeHtml(label || '') + '</strong>' + content + '</div>';
+    }
+
+    function render(data, sourceLabel) {
+      const normalized = {
+        ...data,
+        statusText: deriveStatusText(data.warrantyStart, data.warrantyEnd),
+        warrantyRange: makeWarrantyRange(data),
+        completionDate: formatDisplayDate(data.completionDate),
+        acceptanceDate: formatDisplayDate(data.acceptanceDate),
+        issuer: data.issuer || {}
+      };
+      normalized.warrantyUrl = toAbsoluteUrl(normalized.warrantyUrl || location.href);
+      const legacyRepairOfficialUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || '';
+      const preferredRepairUrl = getCanonicalRepairUrl(normalized.caseId || '');
+      normalized.repairUrl = toAbsoluteUrl(
+        !normalized.repairUrl || normalized.repairUrl === legacyRepairOfficialUrl
+          ? preferredRepairUrl
+          : normalized.repairUrl
+      );
+      currentRecord = normalized;
+
+      document.getElementById('warrantyStatement').textContent = normalized.warrantyStatement || '';
+      document.getElementById('footerNote').textContent = '案件編號：' + (normalized.caseId || '未設定');
+
+      document.getElementById('metaTable').innerHTML = FIELDS.map(field => {
+        const value = normalized[field.key] || '—';
+        return '<div class="meta-row"><div class="meta-label">' + field.label + '</div><div class="meta-value">' + (field.emphasize ? ('<strong>' + value + '</strong>') : value) + '</div></div>';
+      }).join('');
+
+      document.getElementById('issuerLines').innerHTML = [
+        ['承攬廠商', normalized.issuer.company || APP_CONFIG.companyName || '—'],
+        ['負責人', normalized.issuer.responsiblePerson || '—'],
+        ['地址', normalized.issuer.address || APP_CONFIG.companyAddress || '—']
+      ].map(item => '<div class="issuer-line"><strong>' + item[0] + '：</strong>' + item[1] + '</div>').join('');
+
+
+      document.getElementById('summaryList').innerHTML = [
+        renderSummaryItem('案件編號', normalized.caseId),
+        renderSummaryItem('客戶名稱', normalized.customerName),
+        renderSummaryItem('客戶電話', normalized.customerPhone),
+        renderSummaryItem('保固狀態', '<div class="status-chip status-large ' + getStatusClass(normalized.statusText) + '">' + escapeHtml(normalized.statusText || '未設定') + '</div>', { html: true, wide: true }),
+        renderSummaryItem('保固到期', formatDisplayDate(data.warrantyEnd))
+      ].join('');
+
+      document.getElementById('repairLink').href = normalized.repairUrl;
+      document.getElementById('loadingBox').classList.add('hidden');
+      document.getElementById('paperRoot').classList.remove('hidden');
+      document.getElementById('digitalGrid').classList.remove('hidden');
+      document.getElementById('footerNote').classList.remove('hidden');
+    }
+
+    function showError(message) {
+      document.getElementById('loadingBox').classList.add('hidden');
+      const box = document.getElementById('errorBox');
+      box.classList.remove('hidden');
+      box.textContent = message;
+    }
+
+    async function main() {
+      const token = String(getQueryParam('token') || '').trim();
+      const caseId = String(getQueryParam('id') || '').trim();
+      const allowLocalDraft = getQueryParam('from') === 'admin' || getQueryParam('draft') === '1';
+      try {
+        if (token && window.APP_CONFIG && APP_CONFIG.apiBase) {
+          const remote = await loadJsonp(token);
+          return render(remote, 'Apps Script / Google Sheet');
+        }
+        if (caseId && allowLocalDraft) {
+          const local = readLocalCase(caseId);
+          if (local) return render(local, '本機管理頁草稿 / localStorage');
+        }
+        if (caseId && !allowLocalDraft) {
+          throw new Error('此連結已改為 token 化，請向管理者索取新版保固書連結');
+        }
+        if (token || caseId) {
+          throw new Error('查無此案件資料');
+        }
+        const sample = await loadFallbackSample();
+        render(sample, '樣板資料預覽');
+      } catch (error) {
+        showError('載入失敗：' + error.message);
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>

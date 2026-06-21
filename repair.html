@@ -77,8 +77,8 @@
       return params;
     }
 
-    function getCaseId() {
-      return getMergedQueryParams().get('id') || '';
+    function getToken() {
+      return String(getMergedQueryParams().get('token') || '').trim();
     }
 
     function saveLocalRepair(payload) {
@@ -88,7 +88,7 @@
       localStorage.setItem('repair_requests', JSON.stringify(items));
     }
 
-    async function loadWarranty(caseId) {
+    async function loadWarranty(token) {
       if (!window.APP_CONFIG || !APP_CONFIG.apiBase) throw new Error('api-config.js 尚未設定 apiBase');
       const callbackName = '__repairWarrantyCallback_' + Date.now();
       return new Promise((resolve, reject) => {
@@ -104,7 +104,7 @@
           script.remove();
           reject(new Error('無法讀取案件資料'));
         };
-        script.src = APP_CONFIG.apiBase + '?action=getWarranty&id=' + encodeURIComponent(caseId) + '&callback=' + callbackName;
+        script.src = APP_CONFIG.apiBase + '?action=getWarrantyByToken&token=' + encodeURIComponent(token) + '&callback=' + callbackName;
         document.body.appendChild(script);
       });
     }
@@ -114,7 +114,7 @@
       const callbackName = '__repairCreateCallback_' + Date.now();
       const params = new URLSearchParams({
         action: 'createRepair',
-        caseId: payload.caseId || '',
+        token: payload.token || '',
         contactName: payload.contactName || '',
         phone: payload.phone || '',
         issueType: payload.issueType || '',
@@ -153,10 +153,9 @@
     }
 
     async function init() {
-      const caseId = getCaseId();
-      document.getElementById('caseId').value = caseId;
-      if (!caseId) {
-        document.getElementById('resultText').textContent = '缺少案件編號，請從保固書或資訊卡重新開啟報修頁。';
+      const token = getToken();
+      if (!token) {
+        document.getElementById('resultText').textContent = '缺少保固 token，請從新版保固書連結重新開啟報修頁。';
         document.getElementById('submitBtn').disabled = true;
         document.getElementById('summaryCaseId').textContent = '未指定';
         document.getElementById('summaryProjectName').textContent = '未指定';
@@ -164,7 +163,8 @@
         return;
       }
       try {
-        const warranty = await loadWarranty(caseId);
+        const warranty = await loadWarranty(token);
+        document.getElementById('caseId').value = warranty.caseId || '';
         setSummary(warranty);
       } catch (error) {
         document.getElementById('resultText').textContent = '案件資料讀取失敗：' + error.message;
@@ -177,6 +177,7 @@
       const submitBtn = document.getElementById('submitBtn');
       const payload = {
         caseId: form.caseId.value.trim(),
+        token: getToken(),
         contactName: form.contactName.value.trim(),
         phone: form.phone.value.trim(),
         issueType: form.issueType.value.trim(),

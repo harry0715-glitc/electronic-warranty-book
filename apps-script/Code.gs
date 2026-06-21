@@ -7,6 +7,7 @@ const SHEET_NAMES = {
 const DEFAULT_PUBLIC_BASE = 'https://harry0715-glitc.github.io/electronic-warranty-book';
 const DEFAULT_REPAIR_URL = 'https://line.me/R/ti/p/@yhh1711p';
 const DEFAULT_ADMIN_SEND_PIN = '521527';
+const DEFAULT_ADMIN_API_KEY = '';
 
 const SCRIPT_PROPERTY_KEYS = {
   LINE_CHANNEL_ACCESS_TOKEN: 'LINE_CHANNEL_ACCESS_TOKEN',
@@ -14,103 +15,61 @@ const SCRIPT_PROPERTY_KEYS = {
   LINE_WEBHOOK_KEY: 'LINE_WEBHOOK_KEY',
   LINE_LIFF_ID: 'LINE_LIFF_ID',
   LINE_ADMIN_SEND_PIN: 'LINE_ADMIN_SEND_PIN',
+  ADMIN_API_KEY: 'ADMIN_API_KEY',
   LAST_LINE_DEBUG: 'LAST_LINE_DEBUG'
 };
 
 function doGet(e) {
-  const action = (e.parameter.action || '').trim();
+  const params = e && e.parameter ? e.parameter : {};
+  const action = String(params.action || '').trim();
 
-  if (action === 'createRepair') {
-    try {
-      const created = createRepair_(extractRepairInput_(e.parameter || {}));
-      return output_({ success: true, repairId: created.repair.repairId, repair: created.repair, notify: created.notify }, e.parameter.callback);
-    } catch (error) {
-      return output_({ success: false, message: error.message, stack: error.stack }, e.parameter.callback);
+  try {
+    if (action === 'createRepair') {
+      const created = createRepair_(extractRepairInput_(params));
+      return output_({ success: true, repairId: created.repair.repairId, repair: created.repair, notify: created.notify }, params.callback);
     }
-  }
 
-  if (action === 'listRepairs') {
-    const result = listRepairs_(e.parameter.caseId || '');
-    return output_(result, e.parameter.callback);
-  }
-
-  if (action === 'deleteRepair') {
-    const result = deleteRepairRecord_(e.parameter.repairId || '', e.parameter.pin || '');
-    return output_(result, e.parameter.callback);
-  }
-
-  if (action === 'updateRepairStatus') {
-    const result = updateRepairStatus_(e.parameter.repairId || '', e.parameter.status || '', e.parameter.pin || '', e.parameter.notifyCustomer || '');
-    return output_(result, e.parameter.callback);
-  }
-
-  if (action === 'getWarranty') {
-    const result = getWarrantyById_(e.parameter.id || '');
-    return output_(result, e.parameter.callback);
-  }
-
-  if (action === 'findWarrantyByAddress') {
-    const result = getWarrantyByAddress_(e.parameter.address || '');
-    return output_(result, e.parameter.callback);
-  }
-
-  if (action === 'searchWarrantyAddresses') {
-    const result = searchWarrantyAddresses_(e.parameter.q || e.parameter.address || '');
-    return output_(result, e.parameter.callback);
-  }
-
-  if (action === 'searchWarrantyRecords') {
-    const result = searchWarrantyRecords_(e.parameter.q || '');
-    return output_(result, e.parameter.callback);
-  }
-
-  if (action === 'listWarrantyRecords') {
-    const result = listWarrantyRecords_();
-    return output_(result, e.parameter.callback);
-  }
-
-  if (action === 'deleteWarranty') {
-    const result = deleteWarrantyRecord_(e.parameter.caseId || '', e.parameter.pin || '');
-    return output_(result, e.parameter.callback);
-  }
-
-  if (action === 'getLineBindingByPhone') {
-    const result = getLineBindingByPhone_(e.parameter.phone || '');
-    return output_(result, e.parameter.callback);
-  }
-
-  if (action === 'sendWarrantyCard') {
-    const result = sendWarrantyCardByPhone_(e.parameter.phone || '', e.parameter.caseId || '', e.parameter.pin || '', e.parameter || {});
-    return output_(result, e.parameter.callback);
-  }
-
-  if (action === 'createWarranty') {
-    try {
-      const warranty = normalizeWarranty_(extractWarrantyInput_(e.parameter || {}));
-      upsertWarranty_(warranty);
-      return output_({ success: true, caseId: warranty.caseId, warranty: warranty }, e.parameter.callback);
-    } catch (error) {
-      return output_({ success: false, message: error.message, stack: error.stack }, e.parameter.callback);
+    if (action === 'getWarrantyByToken') {
+      return output_(getWarrantyByToken_(params.token || ''), params.callback);
     }
-  }
 
-  if (action === 'health') {
-    return output_({
-      success: true,
-      service: 'warranty-apps-script',
-      time: new Date().toISOString(),
-      spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
-      spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
-      lineConfigured: getLineConfigStatus_(),
-      lastLineDebug: getLastLineDebug_()
-    }, e.parameter.callback);
-  }
+    if (action === 'listRepairs') return output_(handleAdminAction_(params, function() { return listRepairs_(params.caseId || ''); }), params.callback);
+    if (action === 'deleteRepair') return output_(handleAdminAction_(params, function() { return deleteRepairRecord_(params.repairId || ''); }), params.callback);
+    if (action === 'updateRepairStatus') return output_(handleAdminAction_(params, function() { return updateRepairStatus_(params.repairId || '', params.status || '', params.notifyCustomer || ''); }), params.callback);
+    if (action === 'getWarrantyById') return output_(handleAdminAction_(params, function() { return getWarrantyById_(params.caseId || params.id || ''); }), params.callback);
+    if (action === 'findWarrantyByAddress') return output_(handleAdminAction_(params, function() { return getWarrantyByAddress_(params.address || ''); }), params.callback);
+    if (action === 'searchWarrantyAddresses') return output_(handleAdminAction_(params, function() { return searchWarrantyAddresses_(params.q || params.address || ''); }), params.callback);
+    if (action === 'searchWarrantyRecords') return output_(handleAdminAction_(params, function() { return searchWarrantyRecords_(params.q || ''); }), params.callback);
+    if (action === 'listWarrantyRecords') return output_(handleAdminAction_(params, function() { return listWarrantyRecords_(); }), params.callback);
+    if (action === 'deleteWarranty') return output_(handleAdminAction_(params, function() { return deleteWarrantyRecord_(params.caseId || ''); }), params.callback);
+    if (action === 'getLineBindingByPhone') return output_(handleAdminAction_(params, function() { return getLineBindingByPhone_(params.phone || ''); }), params.callback);
+    if (action === 'sendWarrantyCard') return output_(handleAdminAction_(params, function() { return sendWarrantyCardByPhone_(params.phone || '', params.caseId || '', params || {}); }), params.callback);
+    if (action === 'createWarranty') {
+      return output_(handleAdminAction_(params, function() {
+        const warranty = normalizeWarranty_(extractWarrantyInput_(params));
+        upsertWarranty_(warranty);
+        return { success: true, caseId: warranty.caseId, warranty: warranty };
+      }), params.callback);
+    }
+    if (action === 'health') return output_(handleAdminAction_(params, function() {
+      return {
+        success: true,
+        service: 'warranty-apps-script',
+        time: new Date().toISOString(),
+        spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
+        spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
+        lineConfigured: getLineConfigStatus_(),
+        lastLineDebug: getLastLineDebug_()
+      };
+    }), params.callback);
+    if (action === 'lineDebug') return output_(handleAdminAction_(params, function() {
+      return { success: true, lastLineDebug: getLastLineDebug_(), binding: getLineBindingByPhone_(params.phone || '') };
+    }), params.callback);
 
-  if (action === 'lineDebug') {
-    return output_({ success: true, lastLineDebug: getLastLineDebug_(), binding: getLineBindingByPhone_(e.parameter.phone || '') }, e.parameter.callback);
+    return output_({ success: false, message: 'Unknown action' }, params.callback);
+  } catch (error) {
+    return output_({ success: false, message: error.message, stack: error.stack }, params.callback);
   }
-
-  return output_({ success: false, message: 'Unknown action' }, e.parameter.callback);
 }
 
 function doPost(e) {
@@ -127,9 +86,11 @@ function doPost(e) {
     }
 
     if (action === 'createWarranty') {
-      const warranty = normalizeWarranty_(extractWarrantyInput_(payload.warranty || payload));
-      upsertWarranty_(warranty);
-      return output_({ success: true, caseId: warranty.caseId, warranty: warranty });
+      return output_(handleAdminAction_(payload, function() {
+        const warranty = normalizeWarranty_(extractWarrantyInput_(payload.warranty || payload));
+        upsertWarranty_(warranty);
+        return { success: true, caseId: warranty.caseId, warranty: warranty };
+      }));
     }
 
     if (action === 'createRepair') {
@@ -155,10 +116,92 @@ function parsePayload_(e) {
   return e && e.parameter ? e.parameter : {};
 }
 
+
+function handleAdminAction_(input, fn) {
+  verifyAdminApiKeyOrThrow_(input && input.adminKey);
+  return fn();
+}
+
+function verifyAdminApiKeyOrThrow_(submittedKey) {
+  if (verifyAdminApiKey_(submittedKey)) return true;
+  throw new Error('管理 API 驗證失敗');
+}
+
+function verifyAdminApiKey_(submittedKey) {
+  const provided = String(submittedKey || '').trim();
+  const expected = getAdminApiKey_();
+  return !!provided && !!expected && provided === expected;
+}
+
+function getAdminApiKey_() {
+  return String(
+    getScriptProperty_(SCRIPT_PROPERTY_KEYS.ADMIN_API_KEY)
+    || getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_ADMIN_SEND_PIN)
+    || DEFAULT_ADMIN_API_KEY
+    || DEFAULT_ADMIN_SEND_PIN
+  ).trim();
+}
+
+function generatePublicToken_() {
+  return Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+}
+
+function buildPublicWarrantyUrl_(token) {
+  return DEFAULT_PUBLIC_BASE + '/index.html?token=' + encodeURIComponent(String(token || '').trim());
+}
+
+function buildPublicRepairUrl_(token) {
+  return DEFAULT_PUBLIC_BASE + '/repair.html?token=' + encodeURIComponent(String(token || '').trim());
+}
+
+function ensureWarrantyPublicTokenAtRow_(sheet, headers, rowIndex, row) {
+  const tokenIndex = headers.indexOf('publicToken');
+  if (tokenIndex < 0) return String(rowToObject_(headers, row).publicToken || '').trim();
+  const existing = String(row[tokenIndex] || '').trim();
+  if (existing) return existing;
+  const generated = generatePublicToken_();
+  sheet.getRange(rowIndex, tokenIndex + 1).setValue(generated).setNumberFormat('@STRING@');
+  row[tokenIndex] = generated;
+  return generated;
+}
+
+function getWarrantyByToken_(token) {
+  const targetToken = String(token || '').trim();
+  if (!targetToken) return { success: false, message: 'token is required' };
+  const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return { success: false, message: 'No data found' };
+  const headers = values[0];
+  const tokenIndex = headers.indexOf('publicToken');
+  if (tokenIndex < 0) return { success: false, message: 'public token column not found' };
+  for (var i = 1; i < values.length; i++) {
+    const rowToken = ensureWarrantyPublicTokenAtRow_(sheet, headers, i + 1, values[i]);
+    if (rowToken === targetToken) {
+      return { success: true, warranty: rowToWarranty_(headers, values[i]) };
+    }
+  }
+  return { success: false, message: 'Warranty not found' };
+}
+
+function getExistingWarrantyPublicToken_(caseId) {
+  const targetCaseId = String(caseId || '').trim();
+  if (!targetCaseId) return '';
+  const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return '';
+  const headers = values[0];
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0] || '').trim() !== targetCaseId) continue;
+    return ensureWarrantyPublicTokenAtRow_(sheet, headers, i + 1, values[i]);
+  }
+  return '';
+}
+
 function extractWarrantyInput_(input) {
   const issuer = input.issuer || {};
   return {
     caseId: input.caseId,
+    publicToken: input.publicToken,
     projectName: input.projectName,
     customerName: input.customerName,
     customerPhone: input.customerPhone,
@@ -183,6 +226,7 @@ function extractWarrantyInput_(input) {
 function extractRepairInput_(input) {
   return {
     caseId: input.caseId,
+    token: input.token,
     contactName: input.contactName,
     phone: input.phone,
     issueType: input.issueType,
@@ -198,8 +242,9 @@ function normalizeWarranty_(input) {
   const caseId = String(input.caseId || '').trim() || nextCaseId_();
   const warrantyStart = normalizeDateText_(input.warrantyStart);
   const warrantyEnd = normalizeDateText_(input.warrantyEnd);
-  const repairUrl = String(input.repairUrl || '').trim() || getCanonicalRepairUrl_(caseId);
-  const warrantyUrl = String(input.warrantyUrl || '').trim() || (DEFAULT_PUBLIC_BASE + '/index.html?id=' + encodeURIComponent(caseId));
+  const publicToken = String(input.publicToken || '').trim() || getExistingWarrantyPublicToken_(caseId) || generatePublicToken_();
+  const repairUrl = buildPublicRepairUrl_(publicToken);
+  const warrantyUrl = buildPublicWarrantyUrl_(publicToken);
   return {
     caseId: caseId,
     statusText: deriveStatusText_(warrantyStart, warrantyEnd),
@@ -219,7 +264,8 @@ function normalizeWarranty_(input) {
     issuerAddress: String((input.issuer && input.issuer.address) || '').trim(),
     repairUrl: repairUrl,
     warrantyUrl: warrantyUrl,
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    publicToken: publicToken
   };
 }
 
@@ -233,14 +279,23 @@ function normalizeDateText_(value) {
   return Utilities.formatDate(parsed, 'Asia/Taipei', 'yyyy-MM-dd');
 }
 
-function getCanonicalRepairUrl_(caseId) {
-  return DEFAULT_PUBLIC_BASE + '/repair.html?id=' + encodeURIComponent(String(caseId || '').trim());
+function getCanonicalRepairUrl_(caseIdOrToken) {
+  return buildPublicRepairUrl_(String(caseIdOrToken || '').trim());
 }
 
 function normalizeRepair_(input) {
-  const caseId = String(input.caseId || '').trim();
+  const directCaseId = String(input.caseId || '').trim();
+  const token = String(input.token || '').trim();
+  let warrantyResult = null;
+  let caseId = directCaseId;
+  if (token) {
+    warrantyResult = getWarrantyByToken_(token);
+    caseId = warrantyResult && warrantyResult.success && warrantyResult.warranty ? String(warrantyResult.warranty.caseId || '').trim() : '';
+  } else if (caseId) {
+    warrantyResult = getWarrantyById_(caseId);
+  }
   if (!caseId) throw new Error('caseId is required');
-  const warrantyResult = getWarrantyById_(caseId);
+  if (!warrantyResult) warrantyResult = getWarrantyById_(caseId);
   if (!warrantyResult.success || !warrantyResult.warranty) throw new Error('查無對應保固案件');
   const contactName = String(input.contactName || '').trim();
   const phone = normalizePhone_(input.phone || '');
@@ -352,6 +407,7 @@ function getWarrantyById_(caseId) {
 
   for (var i = 1; i < values.length; i++) {
     if (String(values[i][0]).trim() === String(caseId).trim()) {
+      ensureWarrantyPublicTokenAtRow_(sheet, headers, i + 1, values[i]);
       return { success: true, warranty: rowToWarranty_(headers, values[i]) };
     }
   }
@@ -375,6 +431,7 @@ function getWarrantyByAddress_(address) {
     var rowAddress = normalizeAddress_(values[i][5]);
     if (!rowAddress) continue;
     if (rowAddress === target) {
+      ensureWarrantyPublicTokenAtRow_(sheet, headers, i + 1, values[i]);
       return { success: true, warranty: rowToWarranty_(headers, values[i]) };
     }
     if (!partialMatch && (rowAddress.indexOf(target) >= 0 || target.indexOf(rowAddress) >= 0)) {
@@ -383,6 +440,7 @@ function getWarrantyByAddress_(address) {
   }
 
   if (partialMatch) {
+    ensureWarrantyPublicTokenAtRow_(sheet, headers, values.indexOf(partialMatch) + 1, partialMatch);
     return { success: true, warranty: rowToWarranty_(headers, partialMatch) };
   }
   return { success: false, message: 'Warranty not found' };
@@ -404,6 +462,7 @@ function searchWarrantyRecords_(query) {
   const items = [];
 
   for (var i = values.length - 1; i >= 1; i--) {
+    ensureWarrantyPublicTokenAtRow_(sheet, headers, i + 1, values[i]);
     var warranty = rowToWarranty_(headers, values[i]);
     var matched = !target && !targetPhone;
     if (!matched) {
@@ -458,6 +517,7 @@ function listWarrantyRecords_() {
   const headers = values[0];
   const items = [];
   for (var i = 1; i < values.length; i++) {
+    ensureWarrantyPublicTokenAtRow_(sheet, headers, i + 1, values[i]);
     var warranty = rowToWarranty_(headers, values[i]);
     var binding = getLineBindingByPhone_(warranty.customerPhone || '');
     items.push({
@@ -490,10 +550,9 @@ function listWarrantyRecords_() {
   return { success: true, items: items };
 }
 
-function deleteWarrantyRecord_(caseId, pin) {
+function deleteWarrantyRecord_(caseId) {
   const targetCaseId = String(caseId || '').trim();
   if (!targetCaseId) return { success: false, message: 'caseId is required' };
-  if (!verifyAdminSendPin_(pin)) return { success: false, message: '發送碼錯誤' };
   const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
   const values = sheet.getDataRange().getValues();
   if (values.length <= 1) return { success: false, message: 'No data found' };
@@ -573,7 +632,7 @@ function appendRepair_(repair) {
 }
 
 function warrantyHeaders_() {
-  return ['caseId', 'statusText', 'projectName', 'customerName', 'customerPhone', 'address', 'scope', 'completionDate', 'amount', 'acceptanceDate', 'warrantyStart', 'warrantyEnd', 'warrantyStatement', 'issuerCompany', 'issuerResponsiblePerson', 'issuerAddress', 'repairUrl', 'warrantyUrl', 'updatedAt'];
+  return ['caseId', 'statusText', 'projectName', 'customerName', 'customerPhone', 'address', 'scope', 'completionDate', 'amount', 'acceptanceDate', 'warrantyStart', 'warrantyEnd', 'warrantyStatement', 'issuerCompany', 'issuerResponsiblePerson', 'issuerAddress', 'repairUrl', 'warrantyUrl', 'updatedAt', 'publicToken'];
 }
 
 function repairHeaders_() {
@@ -581,7 +640,7 @@ function repairHeaders_() {
 }
 
 function warrantyToRow_(w) {
-  return [w.caseId, w.statusText, w.projectName, w.customerName, w.customerPhone, w.address, w.scope, w.completionDate, w.amount, w.acceptanceDate, w.warrantyStart, w.warrantyEnd, w.warrantyStatement, w.issuerCompany, w.issuerResponsiblePerson, w.issuerAddress, w.repairUrl, w.warrantyUrl, w.updatedAt];
+  return [w.caseId, w.statusText, w.projectName, w.customerName, w.customerPhone, w.address, w.scope, w.completionDate, w.amount, w.acceptanceDate, w.warrantyStart, w.warrantyEnd, w.warrantyStatement, w.issuerCompany, w.issuerResponsiblePerson, w.issuerAddress, w.repairUrl, w.warrantyUrl, w.updatedAt, w.publicToken];
 }
 
 function repairToRow_(r) {
@@ -591,6 +650,7 @@ function repairToRow_(r) {
 function rowToWarranty_(headers, row) {
   const obj = {};
   headers.forEach(function(header, index) { obj[header] = row[index]; });
+  const publicToken = String(obj.publicToken || '').trim();
   return {
     caseId: obj.caseId,
     statusText: obj.statusText,
@@ -610,8 +670,9 @@ function rowToWarranty_(headers, row) {
       responsiblePerson: obj.issuerResponsiblePerson,
       address: obj.issuerAddress
     },
-    repairUrl: obj.repairUrl,
-    warrantyUrl: obj.warrantyUrl
+    repairUrl: publicToken ? buildPublicRepairUrl_(publicToken) : String(obj.repairUrl || '').trim(),
+    warrantyUrl: publicToken ? buildPublicWarrantyUrl_(publicToken) : String(obj.warrantyUrl || '').trim(),
+    publicToken: publicToken
   };
 }
 
@@ -658,11 +719,10 @@ function listRepairs_(caseId) {
   return { success: true, items: items };
 }
 
-function updateRepairStatus_(repairId, status, pin, notifyCustomer) {
+function updateRepairStatus_(repairId, status, notifyCustomer) {
   const targetRepairId = String(repairId || '').trim();
   const nextStatus = String(status || '').trim();
   if (!targetRepairId) return { success: false, message: 'repairId is required' };
-  if (!verifyAdminSendPin_(pin)) return { success: false, message: '發送碼錯誤' };
   if (['pending', 'completed'].indexOf(nextStatus) < 0) return { success: false, message: 'invalid status' };
   const sheet = getOrCreateSheet_(SHEET_NAMES.REPAIRS, repairHeaders_());
   const values = sheet.getDataRange().getValues();
@@ -683,10 +743,9 @@ function updateRepairStatus_(repairId, status, pin, notifyCustomer) {
   return { success: false, message: 'Repair not found' };
 }
 
-function deleteRepairRecord_(repairId, pin) {
+function deleteRepairRecord_(repairId) {
   const targetRepairId = String(repairId || '').trim();
   if (!targetRepairId) return { success: false, message: 'repairId is required' };
-  if (!verifyAdminSendPin_(pin)) return { success: false, message: '發送碼錯誤' };
   const sheet = getOrCreateSheet_(SHEET_NAMES.REPAIRS, repairHeaders_());
   const values = sheet.getDataRange().getValues();
   if (values.length <= 1) return { success: false, message: 'No repair data found' };
@@ -758,6 +817,23 @@ function findLineContactByPhone_(normalizedPhone) {
       contact.rawPhone = String(values[i][1] || '').trim();
       return contact;
     }
+  }
+  return null;
+}
+
+function findLineContactByUserId_(userId) {
+  const target = String(userId || '').trim();
+  if (!target) return null;
+  const sheet = getOrCreateSheet_(SHEET_NAMES.LINE_CONTACTS, getLineContactHeaders_());
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return null;
+  const headers = values[0];
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][2] || '').trim() !== target) continue;
+    const contact = rowToObject_(headers, values[i]);
+    contact.normalizedPhone = normalizePhone_(values[i][0]) || normalizePhone_(values[i][1]) || '';
+    contact.rawPhone = String(values[i][1] || '').trim();
+    return contact;
   }
   return null;
 }
@@ -846,7 +922,12 @@ function handleLineEvent_(event) {
 
   if (event.type === 'message' && event.message && event.message.type === 'text') {
     const rawText = String(event.message.text || '').trim();
+    const existingContact = findLineContactByUserId_(userId);
     if (!looksLikePhoneBindingText_(rawText)) {
+      if (existingContact) {
+        setLastLineDebug_({ stage: 'message_not_phone_already_bound', rawText: rawText, userIdMasked: maskUserId_(userId), normalizedPhone: existingContact.normalizedPhone || '' });
+        return;
+      }
       setLastLineDebug_({ stage: 'message_not_phone', rawText: rawText, userIdMasked: maskUserId_(userId) });
       if (event.replyToken) {
         try {
@@ -887,11 +968,7 @@ function handleLineEvent_(event) {
   }
 }
 
-function sendWarrantyCardByPhone_(phone, caseId, pin, fallbackInput) {
-  if (!verifyAdminSendPin_(pin)) {
-    return { success: false, message: '發送碼錯誤' };
-  }
-
+function sendWarrantyCardByPhone_(phone, caseId, fallbackInput) {
   const binding = getLineBindingByPhone_(phone);
   if (!binding.success || !binding.bound) {
     return { success: false, message: '此手機尚未完成 LINE 綁定' };
@@ -990,12 +1067,12 @@ function buildRepairCompletedText_(repair) {
 function buildWarrantyFlexMessage_(warranty) {
   const companyName = warranty.issuer && warranty.issuer.company ? warranty.issuer.company : '電子保固書';
   const liffUrl = getWarrantyLiffUrl_(warranty);
-  const canonicalWarrantyUrl = warranty && warranty.caseId
-    ? (DEFAULT_PUBLIC_BASE + '/index.html?id=' + encodeURIComponent(warranty.caseId))
+  const canonicalWarrantyUrl = warranty && warranty.publicToken
+    ? buildPublicWarrantyUrl_(warranty.publicToken)
     : '';
   const warrantyUrl = warranty.warrantyUrl || canonicalWarrantyUrl || liffUrl || '';
   const repairUrl = (!warranty.repairUrl || warranty.repairUrl === DEFAULT_REPAIR_URL || /line\.me\/R\/ti\/p/i.test(String(warranty.repairUrl || '')))
-    ? getCanonicalRepairUrl_(warranty.caseId)
+    ? buildPublicRepairUrl_(warranty.publicToken || '')
     : warranty.repairUrl;
   const statusColor = getStatusColor_(warranty.statusText);
 
@@ -1103,8 +1180,8 @@ function getStatusColor_(statusText) {
 
 function getWarrantyLiffUrl_(warranty) {
   const liffId = getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_LIFF_ID);
-  if (!liffId || !warranty || !warranty.caseId) return '';
-  return 'https://liff.line.me/' + encodeURIComponent(liffId) + '?id=' + encodeURIComponent(warranty.caseId);
+  if (!liffId || !warranty || !warranty.publicToken) return '';
+  return 'https://liff.line.me/' + encodeURIComponent(liffId) + '?token=' + encodeURIComponent(warranty.publicToken);
 }
 
 function getLineConfigStatus_() {
@@ -1113,12 +1190,9 @@ function getLineConfigStatus_() {
     hasChannelSecret: !!getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_CHANNEL_SECRET),
     hasWebhookKey: !!getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_WEBHOOK_KEY),
     hasLiffId: !!getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_LIFF_ID),
-    hasAdminSendPin: !!getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_ADMIN_SEND_PIN)
+    hasAdminSendPin: !!getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_ADMIN_SEND_PIN),
+    hasAdminApiKey: !!getScriptProperty_(SCRIPT_PROPERTY_KEYS.ADMIN_API_KEY)
   };
-}
-
-function verifyAdminSendPin_(submittedPin) {
-  return String(submittedPin || '').trim() === DEFAULT_ADMIN_SEND_PIN;
 }
 
 function getLineProfileSafe_(userId) {
@@ -1238,7 +1312,7 @@ function setupLineConfigOnce_(payload) {
   if (status.hasAccessToken || status.hasChannelSecret) {
     return { success: false, message: 'LINE config already initialized', status: status };
   }
-  setLineConfigForSetup(payload.token, payload.secret, payload.webhookKey, payload.liffId, payload.adminSendPin);
+  setLineConfigForSetup(payload.token, payload.secret, payload.webhookKey, payload.liffId, payload.adminSendPin, payload.adminApiKey);
   return { success: true, status: getLineConfigStatus_() };
 }
 
@@ -1251,14 +1325,33 @@ function getOrCreateSheet_(name, headers) {
     sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
   }
   if (sheet.getLastRow() === 0) sheet.appendRow(headers);
+  ensureSheetHeaders_(sheet, headers);
   applySheetFormats_(sheet, name);
   return sheet;
+}
+
+function ensureSheetHeaders_(sheet, headers) {
+  if (!sheet || !headers || !headers.length) return;
+  const current = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  const normalized = current.map(function(value) { return String(value || '').trim(); });
+  let changed = false;
+  headers.forEach(function(header, index) {
+    if (normalized[index] === header) return;
+    const foundIndex = normalized.indexOf(header);
+    if (foundIndex >= 0) return;
+    sheet.getRange(1, index + 1).setValue(header);
+    normalized[index] = header;
+    changed = true;
+  });
+  if (changed) sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
 }
 
 function applySheetFormats_(sheet, name) {
   if (!sheet) return;
   if (name === SHEET_NAMES.WARRANTIES) {
+    sheet.getRange('A:A').setNumberFormat('@STRING@');
     sheet.getRange('E:E').setNumberFormat('@STRING@');
+    sheet.getRange('T:T').setNumberFormat('@STRING@');
   }
   if (name === SHEET_NAMES.LINE_CONTACTS) {
     sheet.getRange('A:B').setNumberFormat('@STRING@');
@@ -1268,14 +1361,15 @@ function applySheetFormats_(sheet, name) {
   }
 }
 
-function setLineConfigForSetup(token, secret, webhookKey, liffId, adminSendPin) {
+function setLineConfigForSetup(token, secret, webhookKey, liffId, adminSendPin, adminApiKey) {
   const props = PropertiesService.getScriptProperties();
   props.setProperties({
     LINE_CHANNEL_ACCESS_TOKEN: String(token || '').trim(),
     LINE_CHANNEL_SECRET: String(secret || '').trim(),
     LINE_WEBHOOK_KEY: String(webhookKey || '').trim(),
     LINE_LIFF_ID: String(liffId || '').trim(),
-    LINE_ADMIN_SEND_PIN: String(adminSendPin || '').trim()
+    LINE_ADMIN_SEND_PIN: String(adminSendPin || '').trim(),
+    ADMIN_API_KEY: String(adminApiKey || adminSendPin || '').trim()
   }, true);
   return getLineConfigStatus_();
 }

@@ -97,20 +97,60 @@
       });
     }
 
+    function getStoredAdminApiKey() {
+      return String(sessionStorage.getItem('warranty_admin_api_key') || '').trim();
+    }
+
+    function setStoredAdminApiKey(value) {
+      const normalized = String(value || '').trim();
+      if (normalized) sessionStorage.setItem('warranty_admin_api_key', normalized);
+      else sessionStorage.removeItem('warranty_admin_api_key');
+      return normalized;
+    }
+
+    function requestAdminApiKey(actionLabel, force = false) {
+      if (!force) {
+        const stored = getStoredAdminApiKey();
+        if (stored) return stored;
+      }
+      const input = window.prompt(`${actionLabel}需要輸入管理 API 金鑰`, force ? '' : getStoredAdminApiKey());
+      if (input === null) return null;
+      return setStoredAdminApiKey(input);
+    }
+
+    function buildAdminUrl(action, params = {}) {
+      const adminKey = requestAdminApiKey(action);
+      if (!adminKey) throw new Error('未提供管理 API 金鑰');
+      const search = new URLSearchParams({ action, adminKey });
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        search.set(key, String(value));
+      });
+      return `${APP_CONFIG.apiBase}?${search.toString()}`;
+    }
+
+    async function loadAdminJsonp(action, params = {}, retry = true) {
+      const url = buildAdminUrl(action, params);
+      try {
+        return await loadJsonp(url);
+      } catch (error) {
+        if (retry && /管理 API 驗證失敗/.test(String(error && error.message || ''))) {
+          setStoredAdminApiKey('');
+          requestAdminApiKey(action, true);
+          return await loadAdminJsonp(action, params, false);
+        }
+        throw error;
+      }
+    }
+
     async function fetchWarrantyList() {
       if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return { success: false, message: '未設定 API' };
-      return await loadJsonp(`${APP_CONFIG.apiBase}?action=listWarrantyRecords`);
+      return await loadAdminJsonp('listWarrantyRecords');
     }
 
     async function fetchRepairList() {
       if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return { success: false, message: '未設定 API' };
-      return await loadJsonp(`${APP_CONFIG.apiBase}?action=listRepairs`);
-    }
-
-    function requestAdminPin(actionLabel) {
-      const pin = window.prompt(`${actionLabel}需要輸入管理密碼`, '');
-      if (pin === null) return null;
-      return String(pin || '').trim();
+      return await loadAdminJsonp('listRepairs');
     }
 
     function formatBindingText(item) {
@@ -156,22 +196,18 @@
     }
 
     async function redirectToEdit(caseId) {
-      const pin = requestAdminPin('修改案件');
-      if (pin === null) return;
-      if (pin !== (window.APP_CONFIG?.adminSendPin || '521527')) {
-        alert('密碼錯誤');
-        return;
-      }
+      const adminKey = requestAdminApiKey('修改案件');
+      if (!adminKey) return;
       sessionStorage.setItem('warranty_admin_edit_case_id', caseId);
       location.href = `admin.html?editCaseId=${encodeURIComponent(caseId)}&from=query`;
     }
 
     async function deleteWarrantyRecord(caseId) {
-      const pin = requestAdminPin(`刪除案件 ${caseId}`);
-      if (pin === null) return;
+      const adminKey = requestAdminApiKey(`刪除案件 ${caseId}`);
+      if (!adminKey) return;
       const confirmed = window.confirm(`確定要刪除案件 ${caseId} 嗎？此動作無法復原。`);
       if (!confirmed) return;
-      const result = await loadJsonp(`${APP_CONFIG.apiBase}?action=deleteWarranty&caseId=${encodeURIComponent(caseId)}&pin=${encodeURIComponent(pin)}`);
+      const result = await loadAdminJsonp('deleteWarranty', { caseId });
       if (!result || !result.success) {
         alert(result?.message || '刪除失敗');
         return;
@@ -181,9 +217,9 @@
     }
 
     async function updateRepairStatus(repairId, status) {
-      const pin = requestAdminPin(status === 'completed' ? `核銷報修 ${repairId}` : `更新報修 ${repairId}`);
-      if (pin === null) return;
-      const result = await loadJsonp(`${APP_CONFIG.apiBase}?action=updateRepairStatus&repairId=${encodeURIComponent(repairId)}&status=${encodeURIComponent(status)}&pin=${encodeURIComponent(pin)}&notifyCustomer=1`);
+      const adminKey = requestAdminApiKey(status === 'completed' ? `核銷報修 ${repairId}` : `更新報修 ${repairId}`);
+      if (!adminKey) return;
+      const result = await loadAdminJsonp('updateRepairStatus', { repairId, status, notifyCustomer: 1 });
       if (!result || !result.success) {
         alert(result?.message || '更新失敗');
         return;
