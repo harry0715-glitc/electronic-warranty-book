@@ -6,13 +6,14 @@
   "oauthScopes": [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/script.external_request",
-    "https://www.googleapis.com/auth/script.scriptapp"
+    "https://www.googleapis.com/auth/script.scriptapp",
+    "https://www.googleapis.com/auth/userinfo.email"
   ],
   "executionApi": {
     "access": "MYSELF"
   },
   "webapp": {
-    "access": "ANYONE_ANONYMOUS",
+    "access": "ANYONE",
     "executeAs": "USER_DEPLOYING"
   }
 }

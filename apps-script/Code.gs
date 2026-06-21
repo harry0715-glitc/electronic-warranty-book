@@ -16,14 +16,20 @@ const SCRIPT_PROPERTY_KEYS = {
   LINE_LIFF_ID: 'LINE_LIFF_ID',
   LINE_ADMIN_SEND_PIN: 'LINE_ADMIN_SEND_PIN',
   ADMIN_API_KEY: 'ADMIN_API_KEY',
+  ADMIN_ALLOWED_EMAILS: 'ADMIN_ALLOWED_EMAILS',
+  PUBLIC_API_BASE: 'PUBLIC_API_BASE',
   LAST_LINE_DEBUG: 'LAST_LINE_DEBUG'
 };
 
 function doGet(e) {
   const params = e && e.parameter ? e.parameter : {};
   const action = String(params.action || '').trim();
+  const page = String(params.page || '').trim().toLowerCase();
 
   try {
+    if (page === 'admin') return renderAdminHtml_('admin');
+    if (page === 'query') return renderAdminHtml_('query');
+
     if (action === 'createRepair') {
       const created = createRepair_(extractRepairInput_(params));
       return output_({ success: true, repairId: created.repair.repairId, repair: created.repair, notify: created.notify }, params.callback);
@@ -118,6 +124,7 @@ function parsePayload_(e) {
 
 
 function handleAdminAction_(input, fn) {
+  if (hasGoogleSessionAdminAccess_()) return fn();
   verifyAdminApiKeyOrThrow_(input && input.adminKey);
   return fn();
 }
@@ -1385,6 +1392,121 @@ function authorizeLineMessagingAccess() {
     statusCode: response.getResponseCode(),
     body: response.getContentText()
   };
+}
+
+function renderAdminHtml_(page) {
+  const access = getAdminViewerAccess_();
+  if (!access.allowed) {
+    return HtmlService
+      .createHtmlOutput('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Access denied</title></head><body style="font-family:Arial,sans-serif;padding:24px;line-height:1.8;"><h2>無法存取後台</h2><p>請使用已授權的 Google 帳號登入後再開啟此頁。</p><p>目前偵測帳號：' + escapeHtml_(access.email || '未取得') + '</p></body></html>')
+      .setTitle('後台存取限制');
+  }
+
+  const template = HtmlService.createTemplateFromFile(page === 'query' ? 'QueryApp' : 'AdminApp');
+  template.appConfigJson = JSON.stringify(getAdminAppConfig_());
+  template.adminPageUrl = buildAdminPageUrl_('admin');
+  template.queryPageUrl = buildAdminPageUrl_('query');
+  template.viewerEmail = access.email || '';
+  return template
+    .evaluate()
+    .setTitle(page === 'query' ? '查詢保固書' : '電子保固書建立')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+}
+
+function getAdminViewerAccess_() {
+  const email = getActiveUserEmail_();
+  const allowedEmails = getAllowedAdminEmails_();
+  if (!allowedEmails.length) {
+    return { allowed: true, email: email, mode: 'signed_in_google_account' };
+  }
+  if (!email) {
+    return { allowed: false, email: '' };
+  }
+  return {
+    allowed: allowedEmails.indexOf(email.toLowerCase()) !== -1,
+    email: email,
+    mode: 'allowlist'
+  };
+}
+
+function getAllowedAdminEmails_() {
+  const raw = String(getScriptProperty_(SCRIPT_PROPERTY_KEYS.ADMIN_ALLOWED_EMAILS) || '').trim();
+  if (!raw) return [];
+  return raw
+    .split(/[\s,;]+/)
+    .map(function(item) { return String(item || '').trim().toLowerCase(); })
+    .filter(function(item) { return !!item; });
+}
+
+function getActiveUserEmail_() {
+  try {
+    return String(Session.getActiveUser().getEmail() || '').trim();
+  } catch (error) {
+    return '';
+  }
+}
+
+function getAdminAppConfig_() {
+  return {
+    apiBase: buildAdminApiBase_(),
+    publicBase: DEFAULT_PUBLIC_BASE,
+    liffId: String(getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_LIFF_ID) || '').trim(),
+    companyName: '楓根室內裝修設計有限公司',
+    companyPhone: '0900-000-000',
+    companyAddress: '高雄市楠梓區清成街 31 號',
+    repairOfficialUrl: DEFAULT_REPAIR_URL,
+    repairFormBase: 'repair.html',
+    warrantyPageBase: 'index.html',
+    useGoogleSessionAuth: true
+  };
+}
+
+function getPublicApiBase_() {
+  return String(
+    getScriptProperty_(SCRIPT_PROPERTY_KEYS.PUBLIC_API_BASE)
+    || 'https://script.google.com/macros/s/AKfycbxhiL2RwaD6yOlQJVb8MQwJW6zuz0rvcNQdIiCmtwM7JvlWqWzIvaSiGFF6fWXJbw9NYA/exec'
+  ).trim();
+}
+
+function buildAdminApiBase_() {
+  return String(ScriptApp.getService().getUrl() || '').trim() || getPublicApiBase_();
+}
+
+function hasGoogleSessionAdminAccess_() {
+  const allowedEmails = getAllowedAdminEmails_();
+  if (!allowedEmails.length) return true;
+  const email = getActiveUserEmail_();
+  return !!email && allowedEmails.indexOf(email.toLowerCase()) !== -1;
+}
+
+function buildAdminPageUrl_(page) {
+  const base = String(ScriptApp.getService().getUrl() || '').trim();
+  if (!base) return '?page=' + encodeURIComponent(page);
+  return base + '?page=' + encodeURIComponent(page);
+}
+
+function setAdminWebConfigForOps_(allowedEmails, publicApiBase) {
+  const props = PropertiesService.getScriptProperties();
+  const normalizedEmails = String(allowedEmails || '').trim();
+  const normalizedApiBase = String(publicApiBase || '').trim();
+  const update = {};
+  if (normalizedEmails) update[SCRIPT_PROPERTY_KEYS.ADMIN_ALLOWED_EMAILS] = normalizedEmails;
+  if (normalizedApiBase) update[SCRIPT_PROPERTY_KEYS.PUBLIC_API_BASE] = normalizedApiBase;
+  if (Object.keys(update).length) props.setProperties(update, true);
+  return {
+    success: true,
+    adminAllowedEmails: String(getScriptProperty_(SCRIPT_PROPERTY_KEYS.ADMIN_ALLOWED_EMAILS) || '').trim(),
+    publicApiBase: getPublicApiBase_()
+  };
+}
+
+function escapeHtml_(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function output_(data, callback) {

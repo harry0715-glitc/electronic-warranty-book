@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>查詢保固書</title>
   <style>
-    @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Rg.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
-    @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Bd.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+    @font-face { font-family: "LINE Seed TW"; src: url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_Rg.woff2") format("woff2"), url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "LINE Seed TW"; src: url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_Bd.woff2") format("woff2"), url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
     :root { --bg:#141210; --panel:#1f1b18; --gold:#d1b07a; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(209,176,122,.22); }
     * { box-sizing: border-box; }
     html, body { margin:0; min-height:100%; background:linear-gradient(180deg,#0f0d0c,#181410 48%,#120f0d); color:var(--ink); font-family:"LINE Seed TW","Noto Sans TC","Microsoft JhengHei",sans-serif; }
@@ -43,8 +43,9 @@
     <section class="hero">
       <h1>查詢保固書</h1>
       <p>這一頁專門用來查看案件、確認 LINE 綁定狀態、查看待處理報修，以及執行修改、刪除與核銷。</p>
+      <p class="small">登入帳號：<span id="viewerEmailLabel"><?= viewerEmail ?></span></p>
       <div class="actions">
-        <a class="secondary btn" href="admin.html">回到建立頁</a>
+        <a class="secondary btn" href="<?= adminPageUrl ?>">回到建立頁</a>
         <button class="primary" type="button" id="refreshBtn">重新整理案件清單</button>
       </div>
     </section>
@@ -56,7 +57,12 @@
     </section>
   </div>
 
-  <script src="api-config.js?v=20260614-repair-query"></script>
+  <script>
+    window.APP_CONFIG = <?!= appConfigJson ?>;
+    window.ADMIN_PAGE_URL = <?!= JSON.stringify(adminPageUrl) ?>;
+    window.QUERY_PAGE_URL = <?!= JSON.stringify(queryPageUrl) ?>;
+    window.ADMIN_VIEWER_EMAIL = <?!= JSON.stringify(viewerEmail) ?>;
+  </script>
   <script>
     function toIsoDate(value) {
       const text = String(value || '').trim();

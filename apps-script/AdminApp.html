@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>電子保固書建立</title>
   <style>
-    @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Rg.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
-    @font-face { font-family: "LINE Seed TW"; src: url("assets/fonts/LINESeedTW_Bd.woff2") format("woff2"), url("assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+    @font-face { font-family: "LINE Seed TW"; src: url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_Rg.woff2") format("woff2"), url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "LINE Seed TW"; src: url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_Bd.woff2") format("woff2"), url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
     :root { --bg:#141210; --panel:#1f1b18; --panel2:#171311; --gold:#d1b07a; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(209,176,122,.22); }
     * { box-sizing: border-box; }
     html, body { margin:0; min-height:100%; background:linear-gradient(180deg,#0f0d0c,#181410 48%,#120f0d); color:var(--ink); font-family:"LINE Seed TW","Noto Sans TC","Microsoft JhengHei",sans-serif; }
@@ -52,6 +52,7 @@
         <div class="step"><strong>3. 查綁定後由 OA 發送</strong><span>建立成功後可直接確認 LINE 綁定狀態並發送資訊卡。</span></div>
       </div>
 
+      <p class="small">登入帳號：<span id="viewerEmailLabel"><?= viewerEmail ?></span></p>
       <div class="quick-tools">
         <button class="secondary" type="button" id="openQueryPageBtn">查詢保固書</button>
       </div>
@@ -112,7 +113,12 @@
     </section>
   </div>
 
-  <script src="api-config.js?v=20260613-2"></script>
+  <script>
+    window.APP_CONFIG = <?!= appConfigJson ?>;
+    window.ADMIN_PAGE_URL = <?!= JSON.stringify(adminPageUrl) ?>;
+    window.QUERY_PAGE_URL = <?!= JSON.stringify(queryPageUrl) ?>;
+    window.ADMIN_VIEWER_EMAIL = <?!= JSON.stringify(viewerEmail) ?>;
+  </script>
   <script>
     function getBaseUrl() {
       if (window.APP_CONFIG && APP_CONFIG.publicBase) return APP_CONFIG.publicBase.replace(/\/$/, '');
@@ -720,7 +726,7 @@
     const amountInput = form.elements.amount;
 
     document.getElementById('openQueryPageBtn').addEventListener('click', () => {
-      location.href = 'query.html';
+      location.href = window.QUERY_PAGE_URL;
     });
 
     amountInput.addEventListener('blur', () => {
