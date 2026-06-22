@@ -524,7 +524,9 @@
       }
       const input = window.prompt(`${actionLabel}需要輸入管理 API 金鑰`, force ? '' : getStoredAdminApiKey());
       if (input === null) return null;
-      return setStoredAdminApiKey(input);
+      const normalized = setStoredAdminApiKey(input);
+      if (!normalized) throw new Error('未提供管理 API 金鑰');
+      return normalized;
     }
 
     function buildAdminUrl(action, params = {}) {
