@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>楓根後台登入</title>
+  <title>楓根後台入口</title>
   <style>
     :root { --bg:#0e0c0b; --panel:#191512; --gold:#d5b06b; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(213,176,107,.18); }
     * { box-sizing:border-box; }
@@ -22,18 +22,19 @@
 <body>
   <main class="card">
     <div>
-      <h1>楓根後台登入</h1>
-      <p>請先使用已授權的 Google 帳號登入。登入後可依你的權限進行新增、查詢、報修管理；修改與刪除僅限管理者。</p>
+      <h1>楓根後台入口</h1>
+      <p>這裡提供目前可用的後台入口。建立、查詢、報修管理都改走 GitHub Pages 公開後台頁；如需切換 Google 帳號，再另外使用下方按鈕。</p>
     </div>
     <div class="actions">
-      <a class="primary btn" href="https://script.google.com/macros/s/AKfycbyIq4j6NPL_xMSoPfIY6kzzswQxRUXErgffBNgIen-xoU8OxaBC3etJtY82DXroSOtZ4Q/exec?page=dashboard">使用 Google 登入</a>
+      <a class="primary btn" href="admin.html">建立保固書</a>
+      <a class="secondary btn" href="query.html">查詢保固書</a>
       <a class="secondary btn" href="https://accounts.google.com/Logout" target="_blank" rel="noopener">切換 Google 帳號</a>
     </div>
     <div class="note">
       <ul>
-        <li>可登入帳號名單放在同一份 Google Sheet 的 <strong>AdminUsers</strong> 工作表。</li>
-        <li>欄位格式：email / role / active / name / note / updatedAt。</li>
-        <li>role 請填 <strong>manager</strong> 或 <strong>staff</strong>；active 請填 TRUE。</li>
+        <li>後台頁本身走 GitHub Pages，但資料仍讀寫同一份 Apps Script / Google Sheet。</li>
+        <li>查詢頁需要管理 API 金鑰時，輸入目前有效的管理金鑰即可進入案件清單。</li>
+        <li>若需要切換 Google 帳號，再使用上方的 <strong>切換 Google 帳號</strong> 按鈕即可。</li>
       </ul>
     </div>
   </main>
