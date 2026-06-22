@@ -53,7 +53,6 @@
       </div>
 
       <div class="quick-tools">
-        <button class="secondary" type="button" id="openDashboardBtn">後台首頁</button>
         <button class="secondary" type="button" id="openQueryPageBtn">查詢保固書</button>
       </div>
     </section>
@@ -721,10 +720,6 @@
 
     const form = document.getElementById('warrantyForm');
     const amountInput = form.elements.amount;
-
-    document.getElementById('openDashboardBtn').addEventListener('click', () => {
-      location.href = window.DASHBOARD_PAGE_URL;
-    });
 
     document.getElementById('openQueryPageBtn').addEventListener('click', () => {
       location.href = window.QUERY_PAGE_URL;
