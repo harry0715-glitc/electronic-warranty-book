@@ -5,53 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>楓根後台登入</title>
   <style>
-    :root { --bg:#0e0c0b; --panel:#191512; --panel2:#241d18; --gold:#d5b06b; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(213,176,107,.18); }
+    :root { --bg:#0e0c0b; --panel:#191512; --gold:#d5b06b; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(213,176,107,.18); }
     * { box-sizing:border-box; }
     body { margin:0; min-height:100vh; font-family:"Microsoft JhengHei","Noto Sans TC",sans-serif; color:var(--ink); background:radial-gradient(circle at top, rgba(213,176,107,.1), transparent 24%), linear-gradient(180deg,#0b0908,#15110f 55%,#0d0b0a); display:grid; place-items:center; padding:24px; }
     .card { width:min(760px,100%); background:linear-gradient(180deg,rgba(31,25,21,.98),rgba(18,14,12,.98)); border:1px solid var(--line); border-radius:28px; box-shadow:0 28px 80px rgba(0,0,0,.35); padding:30px; display:grid; gap:22px; }
     h1 { margin:0; color:var(--gold); font-size:34px; }
     p { margin:0; line-height:1.8; color:var(--muted); }
-    .roles { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
-    .role { border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.03); border-radius:18px; padding:18px; display:grid; gap:8px; }
-    .role strong { color:#ffe1ab; font-size:18px; }
     .actions { display:flex; flex-wrap:wrap; gap:12px; }
-    button,a.btn { appearance:none; border:0; text-decoration:none; cursor:pointer; border-radius:14px; padding:14px 18px; font-weight:700; font-size:16px; display:inline-flex; align-items:center; justify-content:center; }
+    a.btn { appearance:none; border:0; text-decoration:none; cursor:pointer; border-radius:14px; padding:14px 18px; font-weight:700; font-size:16px; display:inline-flex; align-items:center; justify-content:center; }
     .primary { background:linear-gradient(180deg,#f4dfb6,#c99b53); color:#20150c; }
     .secondary { background:#2b231d; color:var(--ink); border:1px solid rgba(255,255,255,.08); }
     .note { padding:16px 18px; border-radius:18px; background:rgba(213,176,107,.08); border:1px solid rgba(213,176,107,.18); color:#f3e4c5; }
     ul { margin:0; padding-left:1.2em; display:grid; gap:6px; color:#f1e3c7; }
-    @media (max-width:720px) { .roles{grid-template-columns:1fr;} .card{padding:22px;} h1{font-size:28px;} }
   </style>
 </head>
 <body>
   <main class="card">
     <div>
       <h1>楓根後台登入</h1>
-      <p>公司人員請先使用 Google 帳號登入，再進入保固後台。若目前瀏覽器已有多個 Google 帳號，按下方按鈕後可切換或重新選擇帳號。</p>
+      <p>請先使用已授權的 Google 帳號登入。登入後可依你的權限進行新增、查詢、報修管理；修改與刪除僅限管理者。</p>
     </div>
-
-    <section class="roles">
-      <div class="role">
-        <strong>建立 / 修改保固書</strong>
-        <p>新增案件、修改案件內容、確認保固書連結與 LINE 綁定狀態。</p>
-        <div class="actions">
-          <a class="primary btn" href="https://script.google.com/macros/s/AKfycbyIq4j6NPL_xMSoPfIY6kzzswQxRUXErgffBNgIen-xoU8OxaBC3etJtY82DXroSOtZ4Q/exec?page=admin">使用 Google 登入</a>
-        </div>
-      </div>
-      <div class="role">
-        <strong>查詢 / 報修管理</strong>
-        <p>查看案件清單、待處理報修、修改案件、刪除案件與完成核銷。</p>
-        <div class="actions">
-          <a class="primary btn" href="https://script.google.com/macros/s/AKfycbyIq4j6NPL_xMSoPfIY6kzzswQxRUXErgffBNgIen-xoU8OxaBC3etJtY82DXroSOtZ4Q/exec?page=query">使用 Google 登入</a>
-        </div>
-      </div>
-    </section>
-
+    <div class="actions">
+      <a class="primary btn" href="https://script.google.com/macros/s/AKfycbyIq4j6NPL_xMSoPfIY6kzzswQxRUXErgffBNgIen-xoU8OxaBC3etJtY82DXroSOtZ4Q/exec?page=dashboard">使用 Google 登入</a>
+      <a class="secondary btn" href="https://accounts.google.com/Logout" target="_blank" rel="noopener">切換 Google 帳號</a>
+    </div>
     <div class="note">
       <ul>
-        <li>如果直接進不去，請先在瀏覽器登入你的 Google 帳號再重試。</li>
-        <li>若要切換 Google 帳號，可先到 <a class="secondary btn" style="padding:8px 12px;display:inline-flex;" href="https://accounts.google.com/Logout" target="_blank" rel="noopener">Google 登出 / 切換帳號</a>，再回來按登入。</li>
-        <li>客戶公開頁與這個後台已分開；客戶不會看到後台功能。</li>
+        <li>可登入帳號名單放在同一份 Google Sheet 的 <strong>AdminUsers</strong> 工作表。</li>
+        <li>欄位格式：email / role / active / name / note / updatedAt。</li>
+        <li>role 請填 <strong>manager</strong> 或 <strong>staff</strong>；active 請填 TRUE。</li>
       </ul>
     </div>
   </main>

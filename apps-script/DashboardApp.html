@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>後台首頁</title>
+  <style>
+    :root { --bg:#141210; --panel:#1f1b18; --gold:#d1b07a; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(209,176,122,.22); }
+    * { box-sizing:border-box; }
+    html, body { margin:0; min-height:100%; background:linear-gradient(180deg,#0f0d0c,#181410 48%,#120f0d); color:var(--ink); font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif; }
+    body { padding:20px 14px 40px; }
+    .wrap { width:min(980px,100%); margin:0 auto; display:grid; gap:18px; }
+    .hero,.panel,.card { background:linear-gradient(180deg,rgba(37,31,26,.96),rgba(20,17,15,.98)); border:1px solid var(--line); border-radius:22px; box-shadow:0 20px 60px rgba(0,0,0,.28); }
+    .hero { padding:24px; display:grid; gap:10px; }
+    .hero h1,.panel h2 { margin:0; color:var(--gold); }
+    .small,p { margin:0; color:var(--muted); line-height:1.8; }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+    .card { padding:18px; display:grid; gap:12px; }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .btn { border:0; border-radius:12px; padding:12px 18px; font:inherit; font-weight:700; text-decoration:none; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+    .primary { background:linear-gradient(180deg,#ecd7ac,#c89f60); color:#22190f; }
+    .secondary { background:#2a241f; color:var(--ink); border:1px solid var(--line); }
+    .status { padding:12px 14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.08); color:#f2e3c4; }
+    @media (max-width: 900px) { .grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>電子保固書後台</h1>
+      <p>登入帳號：<strong><?= viewerEmail ?></strong>｜角色：<strong><?= viewerRole ?></strong></p>
+      <p class="small">一般人員可新增與查詢；管理者可修改、刪除與核銷報修。</p>
+      <div class="status">帳號名單來源：Google Sheet 的 AdminUsers 工作表（私有，不放 GitHub）。</div>
+    </section>
+    <section class="grid">
+      <div class="card">
+        <h2>新增保固</h2>
+        <p>建立新案件、產生 token 化保固書與報修連結。</p>
+        <div class="actions"><a class="btn primary" href="<?= adminPageUrl ?>">進入新增保固</a></div>
+      </div>
+      <div class="card">
+        <h2>查詢 / 報修管理</h2>
+        <p>查看案件、LINE 綁定、報修紀錄；管理者可核銷與刪除。</p>
+        <div class="actions"><a class="btn primary" href="<?= queryPageUrl ?>">進入查詢管理</a></div>
+      </div>
+      <div class="card">
+        <h2>帳號管理說明</h2>
+        <p>請到同一份 Google Sheet 的 <strong>AdminUsers</strong> 工作表維護：</p>
+        <div class="status">email / role / active / name / note / updatedAt<br>role：manager 或 staff<br>active：TRUE 啟用</div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

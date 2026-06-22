@@ -48,12 +48,12 @@
       <p>此頁用來建立新的電子保固書案件。建立完成後，系統會保留 <strong>完整保固書網址</strong>，並可直接確認 <strong>LINE 綁定狀態</strong> 與透過 <strong>官方帳號發送資訊卡</strong>。</p>
       <div class="steps">
         <div class="step"><strong>1. 填寫案件資料</strong><span>案件編號由系統自動產生，不需手動輸入。</span></div>
-        <div class="step"><strong>2. 送出前再次確認</strong><span>建立後可從「查詢保固書」清單進行修改或刪除。</span></div>
-        <div class="step"><strong>3. 查綁定後由 OA 發送</strong><span>建立成功後可直接確認 LINE 綁定狀態並發送資訊卡。</span></div>
+        <div class="step"><strong>2. 一般人員可新增</strong><span>新增案件與建立保固書由授權 Google 帳號即可操作。</span></div>
+        <div class="step"><strong>3. 修改僅限管理者</strong><span>既有案件修改、刪除與報修核銷需管理者權限。</span></div>
       </div>
 
-      <p class="small">登入帳號：<span id="viewerEmailLabel"><?= viewerEmail ?></span></p>
       <div class="quick-tools">
+        <button class="secondary" type="button" id="openDashboardBtn">後台首頁</button>
         <button class="secondary" type="button" id="openQueryPageBtn">查詢保固書</button>
       </div>
     </section>
@@ -118,6 +118,9 @@
     window.ADMIN_PAGE_URL = <?!= JSON.stringify(adminPageUrl) ?>;
     window.QUERY_PAGE_URL = <?!= JSON.stringify(queryPageUrl) ?>;
     window.ADMIN_VIEWER_EMAIL = <?!= JSON.stringify(viewerEmail) ?>;
+    window.ADMIN_VIEWER_ROLE = <?!= JSON.stringify(viewerRole) ?>;
+    window.ADMIN_VIEWER_IS_MANAGER = <?!= JSON.stringify(viewerIsManager) ?>;
+    window.DASHBOARD_PAGE_URL = <?!= JSON.stringify(dashboardPageUrl) ?>;
   </script>
   <script>
     function getBaseUrl() {
@@ -646,8 +649,10 @@
     }
 
     async function openRecordForEdit(caseId) {
-      const adminKey = requestAdminApiKey('修改案件');
-      if (!adminKey) return;
+      if (!window.ADMIN_VIEWER_IS_MANAGER) {
+        alert('修改既有案件僅限管理者');
+        return;
+      }
       await loadRecordForEdit(caseId);
     }
 
@@ -724,6 +729,10 @@
 
     const form = document.getElementById('warrantyForm');
     const amountInput = form.elements.amount;
+
+    document.getElementById('openDashboardBtn').addEventListener('click', () => {
+      location.href = window.DASHBOARD_PAGE_URL;
+    });
 
     document.getElementById('openQueryPageBtn').addEventListener('click', () => {
       location.href = window.QUERY_PAGE_URL;
@@ -810,8 +819,10 @@
         await loadRecordForEdit(caseId);
         return;
       }
-      const adminKey = requestAdminApiKey('修改案件');
-      if (!adminKey) return;
+      if (!window.ADMIN_VIEWER_IS_MANAGER) {
+        alert('修改既有案件僅限管理者');
+        return;
+      }
       await loadRecordForEdit(caseId);
     }
 

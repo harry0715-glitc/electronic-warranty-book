@@ -1,7 +1,8 @@
 const SHEET_NAMES = {
   WARRANTIES: 'Warranties',
   LINE_CONTACTS: 'LineContacts',
-  REPAIRS: 'Repairs'
+  REPAIRS: 'Repairs',
+  ADMIN_USERS: 'AdminUsers'
 };
 
 const DEFAULT_PUBLIC_BASE = 'https://harry0715-glitc.github.io/electronic-warranty-book';
@@ -17,6 +18,7 @@ const SCRIPT_PROPERTY_KEYS = {
   LINE_ADMIN_SEND_PIN: 'LINE_ADMIN_SEND_PIN',
   ADMIN_API_KEY: 'ADMIN_API_KEY',
   ADMIN_ALLOWED_EMAILS: 'ADMIN_ALLOWED_EMAILS',
+  ADMIN_MANAGER_EMAILS: 'ADMIN_MANAGER_EMAILS',
   PUBLIC_API_BASE: 'PUBLIC_API_BASE',
   LAST_LINE_DEBUG: 'LAST_LINE_DEBUG'
 };
@@ -27,6 +29,7 @@ function doGet(e) {
   const page = String(params.page || '').trim().toLowerCase();
 
   try {
+    if (page === 'dashboard') return renderAdminHtml_('dashboard');
     if (page === 'admin') return renderAdminHtml_('admin');
     if (page === 'query') return renderAdminHtml_('query');
 
@@ -39,25 +42,27 @@ function doGet(e) {
       return output_(getWarrantyByToken_(params.token || ''), params.callback);
     }
 
+    if (action === 'getAdminSessionInfo') return output_(handleAdminAction_(params, function(identity) { return buildAdminSessionInfo_(identity); }), params.callback);
     if (action === 'listRepairs') return output_(handleAdminAction_(params, function() { return listRepairs_(params.caseId || ''); }), params.callback);
-    if (action === 'deleteRepair') return output_(handleAdminAction_(params, function() { return deleteRepairRecord_(params.repairId || ''); }), params.callback);
-    if (action === 'updateRepairStatus') return output_(handleAdminAction_(params, function() { return updateRepairStatus_(params.repairId || '', params.status || '', params.notifyCustomer || ''); }), params.callback);
+    if (action === 'deleteRepair') return output_(handleManagerAction_(params, function() { return deleteRepairRecord_(params.repairId || ''); }), params.callback);
+    if (action === 'updateRepairStatus') return output_(handleManagerAction_(params, function() { return updateRepairStatus_(params.repairId || '', params.status || '', params.notifyCustomer || ''); }), params.callback);
     if (action === 'getWarrantyById') return output_(handleAdminAction_(params, function() { return getWarrantyById_(params.caseId || params.id || ''); }), params.callback);
     if (action === 'findWarrantyByAddress') return output_(handleAdminAction_(params, function() { return getWarrantyByAddress_(params.address || ''); }), params.callback);
     if (action === 'searchWarrantyAddresses') return output_(handleAdminAction_(params, function() { return searchWarrantyAddresses_(params.q || params.address || ''); }), params.callback);
     if (action === 'searchWarrantyRecords') return output_(handleAdminAction_(params, function() { return searchWarrantyRecords_(params.q || ''); }), params.callback);
     if (action === 'listWarrantyRecords') return output_(handleAdminAction_(params, function() { return listWarrantyRecords_(); }), params.callback);
-    if (action === 'deleteWarranty') return output_(handleAdminAction_(params, function() { return deleteWarrantyRecord_(params.caseId || ''); }), params.callback);
+    if (action === 'deleteWarranty') return output_(handleManagerAction_(params, function() { return deleteWarrantyRecord_(params.caseId || ''); }), params.callback);
     if (action === 'getLineBindingByPhone') return output_(handleAdminAction_(params, function() { return getLineBindingByPhone_(params.phone || ''); }), params.callback);
     if (action === 'sendWarrantyCard') return output_(handleAdminAction_(params, function() { return sendWarrantyCardByPhone_(params.phone || '', params.caseId || '', params || {}); }), params.callback);
     if (action === 'createWarranty') {
-      return output_(handleAdminAction_(params, function() {
+      return output_(handleAdminAction_(params, function(identity) {
         const warranty = normalizeWarranty_(extractWarrantyInput_(params));
+        if (warrantyExists_(warranty.caseId) && !identity.isManager) throw new Error('修改既有案件僅限管理者');
         upsertWarranty_(warranty);
         return { success: true, caseId: warranty.caseId, warranty: warranty };
       }), params.callback);
     }
-    if (action === 'health') return output_(handleAdminAction_(params, function() {
+    if (action === 'health') return output_(handleAdminAction_(params, function(identity) {
       return {
         success: true,
         service: 'warranty-apps-script',
@@ -92,8 +97,9 @@ function doPost(e) {
     }
 
     if (action === 'createWarranty') {
-      return output_(handleAdminAction_(payload, function() {
+      return output_(handleAdminAction_(payload, function(identity) {
         const warranty = normalizeWarranty_(extractWarrantyInput_(payload.warranty || payload));
+        if (warrantyExists_(warranty.caseId) && !identity.isManager) throw new Error('修改既有案件僅限管理者');
         upsertWarranty_(warranty);
         return { success: true, caseId: warranty.caseId, warranty: warranty };
       }));
@@ -124,9 +130,29 @@ function parsePayload_(e) {
 
 
 function handleAdminAction_(input, fn) {
-  if (hasGoogleSessionAdminAccess_()) return fn();
-  verifyAdminApiKeyOrThrow_(input && input.adminKey);
-  return fn();
+  const identity = getRequestAdminIdentity_(input);
+  if (!identity.allowed) throw new Error('此 Google 帳號沒有後台權限');
+  return fn(identity);
+}
+
+function handleManagerAction_(input, fn) {
+  const identity = getRequestAdminIdentity_(input);
+  if (!identity.allowed) throw new Error('此 Google 帳號沒有後台權限');
+  if (!identity.isManager) throw new Error('此功能僅限管理者');
+  return fn(identity);
+}
+
+function getRequestAdminIdentity_(input) {
+  if (verifyAdminApiKey_(input && input.adminKey)) {
+    return {
+      allowed: true,
+      isManager: true,
+      role: 'manager',
+      email: '',
+      authMode: 'adminKey'
+    };
+  }
+  return getCurrentAdminIdentity_();
 }
 
 function verifyAdminApiKeyOrThrow_(submittedKey) {
@@ -202,6 +228,17 @@ function getExistingWarrantyPublicToken_(caseId) {
     return ensureWarrantyPublicTokenAtRow_(sheet, headers, i + 1, values[i]);
   }
   return '';
+}
+
+function warrantyExists_(caseId) {
+  const targetCaseId = String(caseId || '').trim();
+  if (!targetCaseId) return false;
+  const sheet = getOrCreateSheet_(SHEET_NAMES.WARRANTIES, warrantyHeaders_());
+  const values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0] || '').trim() === targetCaseId) return true;
+  }
+  return false;
 }
 
 function extractWarrantyInput_(input) {
@@ -1395,47 +1432,96 @@ function authorizeLineMessagingAccess() {
 }
 
 function renderAdminHtml_(page) {
-  const access = getAdminViewerAccess_();
-  if (!access.allowed) {
+  const identity = getCurrentAdminIdentity_();
+  if (!identity.allowed) {
     return HtmlService
-      .createHtmlOutput('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Access denied</title></head><body style="font-family:Arial,sans-serif;padding:24px;line-height:1.8;"><h2>無法存取後台</h2><p>請使用已授權的 Google 帳號登入後再開啟此頁。</p><p>目前偵測帳號：' + escapeHtml_(access.email || '未取得') + '</p></body></html>')
+      .createHtmlOutput('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Access denied</title></head><body style="font-family:Arial,sans-serif;padding:24px;line-height:1.8;"><h2>無法存取後台</h2><p>請使用已授權的 Google 帳號登入後再開啟此頁。</p><p>目前偵測帳號：' + escapeHtml_(identity.email || '未取得') + '</p><p>請到 Google Sheet 的 AdminUsers 工作表維護 email / role / active 欄位。</p></body></html>')
       .setTitle('後台存取限制');
   }
 
-  const template = HtmlService.createTemplateFromFile(page === 'query' ? 'QueryApp' : 'AdminApp');
+  const templateName = page === 'query' ? 'QueryApp' : (page === 'dashboard' ? 'DashboardApp' : 'AdminApp');
+  const template = HtmlService.createTemplateFromFile(templateName);
   template.appConfigJson = JSON.stringify(getAdminAppConfig_());
   template.adminPageUrl = buildAdminPageUrl_('admin');
   template.queryPageUrl = buildAdminPageUrl_('query');
-  template.viewerEmail = access.email || '';
+  template.dashboardPageUrl = buildAdminPageUrl_('dashboard');
+  template.viewerEmail = identity.email || '';
+  template.viewerRole = identity.role || 'staff';
+  template.viewerIsManager = !!identity.isManager;
   return template
     .evaluate()
-    .setTitle(page === 'query' ? '查詢保固書' : '電子保固書建立')
+    .setTitle(page === 'query' ? '查詢保固書' : (page === 'dashboard' ? '後台首頁' : '電子保固書建立'))
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 }
 
-function getAdminViewerAccess_() {
+function adminUserHeaders_() {
+  return ['email', 'role', 'active', 'name', 'note', 'updatedAt'];
+}
+
+function getAdminUsersSheet_() {
+  return getOrCreateSheet_(SHEET_NAMES.ADMIN_USERS, adminUserHeaders_());
+}
+
+function getCurrentAdminIdentity_() {
   const email = getActiveUserEmail_();
-  const allowedEmails = getAllowedAdminEmails_();
-  if (!allowedEmails.length) {
-    return { allowed: true, email: email, mode: 'signed_in_google_account' };
+  if (!email) return { allowed: false, email: '', role: '', isManager: false, authMode: 'google' };
+  const sheet = getAdminUsersSheet_();
+  const values = sheet.getDataRange().getValues();
+  const ownerEmail = getScriptOwnerEmail_();
+  if ((values.length <= 1 || !hasActiveAdminUserRows_(values)) && ownerEmail && email.toLowerCase() === ownerEmail.toLowerCase()) {
+    ensureBootstrapOwnerAdminUser_(sheet, values, email);
+    return { allowed: true, email: email, role: 'manager', isManager: true, authMode: 'google_bootstrap_owner' };
   }
-  if (!email) {
-    return { allowed: false, email: '' };
-  }
+  const roleMap = getAdminRoleMap_(values);
+  const record = roleMap[email.toLowerCase()];
+  if (!record) return { allowed: false, email: email, role: '', isManager: false, authMode: 'google' };
   return {
-    allowed: allowedEmails.indexOf(email.toLowerCase()) !== -1,
+    allowed: true,
     email: email,
-    mode: 'allowlist'
+    role: record.role,
+    isManager: record.role === 'manager',
+    authMode: 'google'
   };
 }
 
-function getAllowedAdminEmails_() {
-  const raw = String(getScriptProperty_(SCRIPT_PROPERTY_KEYS.ADMIN_ALLOWED_EMAILS) || '').trim();
-  if (!raw) return [];
-  return raw
-    .split(/[\s,;]+/)
-    .map(function(item) { return String(item || '').trim().toLowerCase(); })
-    .filter(function(item) { return !!item; });
+function hasActiveAdminUserRows_(values) {
+  for (var i = 1; i < values.length; i++) {
+    if (isAdminUserRowActive_(values[i][2])) return true;
+  }
+  return false;
+}
+
+function ensureBootstrapOwnerAdminUser_(sheet, values, email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) return;
+  const roleMap = getAdminRoleMap_(values);
+  if (roleMap[normalizedEmail]) return;
+  sheet.appendRow([normalizedEmail, 'manager', 'TRUE', 'Owner bootstrap', 'auto created for deployment owner', new Date().toISOString()]);
+}
+
+function getAdminRoleMap_(values) {
+  const map = {};
+  for (var i = 1; i < values.length; i++) {
+    const row = values[i];
+    const email = String(row[0] || '').trim().toLowerCase();
+    const role = normalizeAdminRole_(row[1]);
+    const active = isAdminUserRowActive_(row[2]);
+    if (!email || !active || !role) continue;
+    map[email] = { role: role, name: String(row[3] || '').trim() };
+  }
+  return map;
+}
+
+function normalizeAdminRole_(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'manager' || normalized === 'admin' || normalized === 'owner') return 'manager';
+  if (normalized === 'staff' || normalized === 'editor' || normalized === 'user') return 'staff';
+  return '';
+}
+
+function isAdminUserRowActive_(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized == '是' || normalized == '啟用' || normalized == 'active';
 }
 
 function getActiveUserEmail_() {
@@ -1444,6 +1530,24 @@ function getActiveUserEmail_() {
   } catch (error) {
     return '';
   }
+}
+
+function getScriptOwnerEmail_() {
+  try {
+    return String(Session.getEffectiveUser().getEmail() || '').trim();
+  } catch (error) {
+    return '';
+  }
+}
+
+function buildAdminSessionInfo_(identity) {
+  return {
+    success: true,
+    email: identity.email || '',
+    role: identity.role || '',
+    isManager: !!identity.isManager,
+    authMode: identity.authMode || ''
+  };
 }
 
 function getAdminAppConfig_() {
@@ -1472,13 +1576,6 @@ function buildAdminApiBase_() {
   return String(ScriptApp.getService().getUrl() || '').trim() || getPublicApiBase_();
 }
 
-function hasGoogleSessionAdminAccess_() {
-  const allowedEmails = getAllowedAdminEmails_();
-  if (!allowedEmails.length) return true;
-  const email = getActiveUserEmail_();
-  return !!email && allowedEmails.indexOf(email.toLowerCase()) !== -1;
-}
-
 function buildAdminPageUrl_(page) {
   const base = String(ScriptApp.getService().getUrl() || '').trim();
   if (!base) return '?page=' + encodeURIComponent(page);
@@ -1487,16 +1584,14 @@ function buildAdminPageUrl_(page) {
 
 function setAdminWebConfigForOps_(allowedEmails, publicApiBase) {
   const props = PropertiesService.getScriptProperties();
-  const normalizedEmails = String(allowedEmails || '').trim();
   const normalizedApiBase = String(publicApiBase || '').trim();
   const update = {};
-  if (normalizedEmails) update[SCRIPT_PROPERTY_KEYS.ADMIN_ALLOWED_EMAILS] = normalizedEmails;
   if (normalizedApiBase) update[SCRIPT_PROPERTY_KEYS.PUBLIC_API_BASE] = normalizedApiBase;
   if (Object.keys(update).length) props.setProperties(update, true);
   return {
     success: true,
-    adminAllowedEmails: String(getScriptProperty_(SCRIPT_PROPERTY_KEYS.ADMIN_ALLOWED_EMAILS) || '').trim(),
-    publicApiBase: getPublicApiBase_()
+    publicApiBase: getPublicApiBase_(),
+    adminUsersSheet: SHEET_NAMES.ADMIN_USERS
   };
 }
 
