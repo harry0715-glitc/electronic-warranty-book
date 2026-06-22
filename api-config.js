@@ -1,5 +1,5 @@
 window.APP_CONFIG = {
-  apiBase: "https://script.google.com/macros/s/AKfycbxhiL2RwaD6yOlQJVb8MQwJW6zuz0rvcNQdIiCmtwM7JvlWqWzIvaSiGFF6fWXJbw9NYA/exec",
+  apiBase: "https://script.google.com/macros/s/AKfycbyIq4j6NPL_xMSoPfIY6kzzswQxRUXErgffBNgIen-xoU8OxaBC3etJtY82DXroSOtZ4Q/exec",
   publicBase: "https://harry0715-glitc.github.io/electronic-warranty-book",
   liffId: "2010316548-KZgCnSKp",
   companyName: "楓根室內裝修設計有限公司",
