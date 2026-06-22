@@ -724,7 +724,7 @@
     const amountInput = form.elements.amount;
 
     document.getElementById('openQueryPageBtn').addEventListener('click', () => {
-      location.href = window.QUERY_PAGE_URL;
+      location.href = window.QUERY_PAGE_URL || 'query.html';
     });
 
     amountInput.addEventListener('blur', () => {
