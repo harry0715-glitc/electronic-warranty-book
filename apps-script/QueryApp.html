@@ -216,7 +216,10 @@
         return;
       }
       sessionStorage.setItem('warranty_admin_edit_case_id', caseId);
-      location.href = `${window.ADMIN_PAGE_URL}?editCaseId=${encodeURIComponent(caseId)}&from=query`;
+      const target = new URL(window.ADMIN_PAGE_URL, location.href);
+      target.searchParams.set('editCaseId', caseId);
+      target.searchParams.set('from', 'query');
+      location.href = target.toString();
     }
 
     async function deleteWarrantyRecord(caseId) {
