@@ -1573,6 +1573,7 @@ function renderAdminHtml_(page, params) {
   template.adminPageUrl = buildAdminPageUrl_('admin', verifiedAdminKey);
   template.queryPageUrl = buildAdminPageUrl_('query', verifiedAdminKey);
   template.dashboardPageUrl = buildAdminPageUrl_('dashboard', verifiedAdminKey);
+  template.initialEditCaseId = String((params && params.editCaseId) || '').trim();
   template.viewerEmail = identity.email || '';
   template.viewerRole = identity.role || 'staff';
   template.viewerIsManager = !!identity.isManager;

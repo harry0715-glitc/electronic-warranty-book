@@ -114,6 +114,7 @@
     window.ADMIN_VIEWER_ROLE = <?!= JSON.stringify(viewerRole) ?>;
     window.ADMIN_VIEWER_IS_MANAGER = <?!= JSON.stringify(viewerIsManager) ?>;
     window.DASHBOARD_PAGE_URL = <?!= JSON.stringify(dashboardPageUrl) ?>;
+    window.INITIAL_EDIT_CASE_ID = <?!= JSON.stringify(initialEditCaseId) ?>;
   </script>
   <script>
     function getBaseUrl() {
@@ -816,7 +817,7 @@
     });
 
     async function handleIncomingEditRequest() {
-      const caseId = String(getQueryParam('editCaseId') || '').trim();
+      const caseId = String(window.INITIAL_EDIT_CASE_ID || getQueryParam('editCaseId') || '').trim();
       if (!caseId) return;
       const stagedRecord = getStagedEditRecord(caseId);
       if (stagedRecord) {
