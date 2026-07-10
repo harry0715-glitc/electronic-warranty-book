@@ -42,10 +42,10 @@
   <div class="wrap">
     <section class="hero">
       <h1>查詢保固書</h1>
-      <p>這一頁專門用來查看案件、確認 LINE 綁定狀態、查看待處理報修，以及執行修改、刪除與核銷。</p>
       <div class="actions">
-        <a class="secondary btn" href="admin.html">回到建立頁</a>
-        <button class="primary" type="button" id="refreshBtn">重新整理案件清單</button>
+        <a class="secondary btn" href="dashboard.html">後台入口</a>
+        <a class="primary btn" href="admin.html">建立保固書</a>
+        <button class="secondary" type="button" id="refreshBtn">重新整理案件清單</button>
       </div>
     </section>
 
@@ -58,6 +58,13 @@
 
   <script src="api-config.js?v=20260614-repair-query"></script>
   <script>
+    window.ADMIN_PAGE_URL = 'admin.html';
+    window.QUERY_PAGE_URL = 'query.html';
+    window.DASHBOARD_PAGE_URL = 'dashboard.html';
+    window.ADMIN_VIEWER_EMAIL = '管理金鑰模式';
+    window.ADMIN_VIEWER_ROLE = 'manager';
+    window.ADMIN_VIEWER_IS_MANAGER = true;
+
     function toIsoDate(value) {
       const text = String(value || '').trim();
       const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
