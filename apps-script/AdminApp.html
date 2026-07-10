@@ -33,7 +33,7 @@
     textarea { min-height:108px; resize:vertical; }
     .form-note { padding:12px 14px; border-radius:14px; background:rgba(209,176,122,.08); border:1px solid rgba(209,176,122,.18); color:#f2e3c4; }
     .actions { display:flex; flex-wrap:wrap; gap:10px; }
-    button { border:0; border-radius:12px; padding:12px 18px; font:inherit; font-weight:700; cursor:pointer; }
+    button, a.btn { border:0; border-radius:12px; padding:12px 18px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
     .primary { background:linear-gradient(180deg,#ecd7ac,#c89f60); color:#22190f; }
     .secondary { background:#2a241f; color:var(--ink); border:1px solid var(--line); }
     .status { padding:12px 14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.08); color:#f2e3c4; }
@@ -47,7 +47,7 @@
     <section class="hero">
       <h1>電子保固書建立</h1>
       <div class="quick-tools actions">
-        <a class="secondary" href="<?= dashboardPageUrl ?>">後台入口</a>
+        <a class="btn secondary" href="<?= dashboardPageUrl ?>">後台入口</a>
       </div>
     </section>
 
