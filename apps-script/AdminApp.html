@@ -115,6 +115,8 @@
     window.ADMIN_VIEWER_IS_MANAGER = <?!= JSON.stringify(viewerIsManager) ?>;
     window.DASHBOARD_PAGE_URL = <?!= JSON.stringify(dashboardPageUrl) ?>;
     window.INITIAL_EDIT_CASE_ID = <?!= JSON.stringify(initialEditCaseId) ?>;
+    window.INITIAL_EDIT_RECORD = <?!= initialEditRecordJson ?>;
+    window.INITIAL_EDIT_BINDING = <?!= initialEditBindingJson ?>;
   </script>
   <script>
     function getBaseUrl() {
@@ -544,7 +546,26 @@
       return `${APP_CONFIG.apiBase}?${search.toString()}`;
     }
 
+    // 主要傳輸改用 google.script.run（HtmlService 原生 RPC）：
+    // 身分隱含傳遞、不依賴第三方 cookie，手機 / LINE WebView 一樣可靠。
+    // JSONP 僅作為 google.script.run 不存在時的備援。
+    function callAdminRpc(action, params = {}) {
+      return new Promise((resolve, reject) => {
+        try {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler((error) => reject(new Error((error && error.message) || 'RPC 呼叫失敗')))
+            .adminRpc(action, params);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+
     async function loadAdminJsonp(action, params = {}, retry = true) {
+      if (window.google && google.script && google.script.run) {
+        return await callAdminRpc(action, params);
+      }
       const url = buildAdminUrl(action, params);
       try {
         return await loadJsonp(url);
@@ -605,6 +626,13 @@
     }
 
     async function refreshLineBindingStatus(record, notify = false) {
+      // 頁面初次載入時優先用伺服器注入的綁定狀態，免打 API；手動更新時才即時查
+      if (!notify && window.INITIAL_EDIT_BINDING) {
+        const injectedBinding = window.INITIAL_EDIT_BINDING;
+        window.INITIAL_EDIT_BINDING = null;
+        renderLineBindingStatus(injectedBinding, record);
+        return injectedBinding;
+      }
       const binding = await fetchLineBindingByPhone(record.customerPhone || '');
       renderLineBindingStatus(binding, record);
       if (notify) {
@@ -816,22 +844,38 @@
       resetCreateMode();
     });
 
+    async function enterEditModeWithRecord(rawRecord) {
+      const record = normalizeExistingRecord(rawRecord);
+      if (!record || !record.caseId) return false;
+      currentEditingCaseId = record.caseId || '';
+      saveRecord(record);
+      populateForm(record);
+      await showSaved(record, '已載入案件，可修改後重新儲存');
+      document.getElementById('statusBox').textContent = `修改模式｜案件編號 ${record.caseId}`;
+      return true;
+    }
+
     async function handleIncomingEditRequest() {
       const caseId = String(window.INITIAL_EDIT_CASE_ID || getQueryParam('editCaseId') || '').trim();
       if (!caseId) return;
-      const stagedRecord = getStagedEditRecord(caseId);
-      if (stagedRecord) {
-        const record = normalizeExistingRecord(stagedRecord);
-        if (record && record.caseId) {
-          currentEditingCaseId = record.caseId || '';
-          saveRecord(record);
-          populateForm(record);
-          await showSaved(record, '已載入案件，可修改後重新儲存');
-          document.getElementById('statusBox').textContent = `修改模式｜案件編號 ${record.caseId}`;
+
+      // 第一優先：伺服器渲染時注入的完整案件資料（不需任何後續請求，最可靠）
+      const injected = window.INITIAL_EDIT_RECORD;
+      if (injected && String(injected.caseId || '').trim() === caseId) {
+        if (await enterEditModeWithRecord(injected)) {
           clearStagedEditRecord();
           return;
         }
       }
+
+      // 第二：Query 頁 stage 的 sessionStorage（同沙箱來源時可用）
+      const stagedRecord = getStagedEditRecord(caseId);
+      if (stagedRecord && await enterEditModeWithRecord(stagedRecord)) {
+        clearStagedEditRecord();
+        return;
+      }
+
+      // 第三：即時向後端讀取
       if (!window.ADMIN_VIEWER_IS_MANAGER) {
         alert('修改既有案件僅限管理者');
         return;
@@ -841,6 +885,8 @@
 
     handleIncomingEditRequest().catch((error) => {
       console.warn('handleIncomingEditRequest failed', error);
+      // 失敗不再無聲：讓使用者看得到原因，避免「以為只是跳到建立頁」
+      alert(`進入修改模式失敗：${(error && error.message) || '未知錯誤'}\n請回查詢頁重試，或截圖此訊息回報。`);
     });
   </script>
 </body>

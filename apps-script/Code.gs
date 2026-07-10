@@ -171,6 +171,19 @@ function routeAdminAction_(action, input) {
   return null;
 }
 
+// google.script.run 專用 RPC：Apps Script 內建管理頁（AdminApp/QueryApp/Dashboard）
+// 改走原生 RPC，身分由 HtmlService 隱含傳遞，不依賴第三方 cookie，
+// 手機 / LINE WebView 也可靠。權限檢查與 GET/POST 相同（routeAdminAction_ 內建）。
+function adminRpc(action, params) {
+  try {
+    const result = routeAdminAction_(String(action || '').trim(), params || {});
+    if (result === null) return { success: false, message: 'Unknown action' };
+    return result;
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
 // 公開報修入口保護：
 // 1. 未帶有效 adminKey 的請求一律要求有效 publicToken（防止用連號 caseId 灌單）
 // 2. CacheService 頻率限制：單一 token 10 分鐘最多 5 筆、全站 1 小時最多 30 筆
@@ -1573,7 +1586,30 @@ function renderAdminHtml_(page, params) {
   template.adminPageUrl = buildAdminPageUrl_('admin', verifiedAdminKey);
   template.queryPageUrl = buildAdminPageUrl_('query', verifiedAdminKey);
   template.dashboardPageUrl = buildAdminPageUrl_('dashboard', verifiedAdminKey);
-  template.initialEditCaseId = String((params && params.editCaseId) || '').trim();
+  const initialEditCaseId = String((params && params.editCaseId) || '').trim();
+  template.initialEditCaseId = initialEditCaseId;
+  // 修改模式關鍵修正：渲染當下就把案件資料與 LINE 綁定狀態注入頁面。
+  // 沙箱 iframe 的 sessionStorage 跨頁不同源、JSONP 在手機/LINE WebView 帶不到
+  // Google session cookie，任何「載入後再打 API」的做法都不可靠；
+  // 伺服器端渲染這一刻是已驗證請求、有完整 Sheet 權限，注入最可靠。
+  let initialEditRecordJson = 'null';
+  let initialEditBindingJson = 'null';
+  if (initialEditCaseId && templateName === 'AdminApp') {
+    try {
+      const recordResult = getWarrantyById_(initialEditCaseId);
+      if (recordResult && recordResult.success && recordResult.warranty) {
+        initialEditRecordJson = JSON.stringify(recordResult.warranty);
+        const phone = String(recordResult.warranty.customerPhone || '').trim();
+        if (phone) {
+          try {
+            initialEditBindingJson = JSON.stringify(getLineBindingByPhone_(phone));
+          } catch (bindingError) { /* 綁定查詢失敗不阻擋編輯模式 */ }
+        }
+      }
+    } catch (recordError) { /* 查無案件時前端會走 fallback 並顯示錯誤 */ }
+  }
+  template.initialEditRecordJson = initialEditRecordJson;
+  template.initialEditBindingJson = initialEditBindingJson;
   template.viewerEmail = identity.email || '';
   template.viewerRole = identity.role || 'staff';
   template.viewerIsManager = !!identity.isManager;

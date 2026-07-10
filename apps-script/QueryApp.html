@@ -144,7 +144,25 @@
       return `${APP_CONFIG.apiBase}?${search.toString()}`;
     }
 
+    // 主要傳輸改用 google.script.run（原生 RPC，身分隱含傳遞，WebView 可靠）；
+    // JSONP 僅作備援。
+    function callAdminRpc(action, params = {}) {
+      return new Promise((resolve, reject) => {
+        try {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler((error) => reject(new Error((error && error.message) || 'RPC 呼叫失敗')))
+            .adminRpc(action, params);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+
     async function loadAdminJsonp(action, params = {}, retry = true) {
+      if (window.google && google.script && google.script.run) {
+        return await callAdminRpc(action, params);
+      }
       const url = buildAdminUrl(action, params);
       try {
         return await loadJsonp(url);
