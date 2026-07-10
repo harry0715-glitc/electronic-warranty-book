@@ -52,9 +52,9 @@
         <div class="step"><strong>3. 修改僅限管理者</strong><span>既有案件修改、刪除與報修核銷需管理者權限。</span></div>
       </div>
 
-      <div class="quick-tools">
-        <button class="secondary" type="button" id="openDashboardBtn">後台首頁</button>
-        <button class="secondary" type="button" id="openQueryPageBtn">查詢保固書</button>
+      <div class="quick-tools actions">
+        <a class="secondary" href="<?= dashboardPageUrl ?>">後台入口</a>
+        <a class="secondary" href="<?= queryPageUrl ?>">查詢保固書</a>
       </div>
     </section>
 
@@ -731,14 +731,6 @@
 
     const form = document.getElementById('warrantyForm');
     const amountInput = form.elements.amount;
-
-    document.getElementById('openDashboardBtn').addEventListener('click', () => {
-      location.href = window.DASHBOARD_PAGE_URL;
-    });
-
-    document.getElementById('openQueryPageBtn').addEventListener('click', () => {
-      location.href = window.QUERY_PAGE_URL;
-    });
 
     amountInput.addEventListener('blur', () => {
       const digitsOnly = normalizeAmountDigits(amountInput.value);
