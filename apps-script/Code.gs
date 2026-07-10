@@ -1550,6 +1550,7 @@ function authorizeLineMessagingAccess() {
 
 function renderAdminHtml_(page, params) {
   const identity = getRequestAdminIdentity_(params || {});
+  const verifiedAdminKey = verifyAdminApiKey_((params && params.adminKey) || '') ? String(params.adminKey || '').trim() : '';
   if (!identity.allowed) {
     const pageValue = String(page || 'dashboard');
     const title = pageValue === 'query' ? '查詢保固書' : (pageValue === 'dashboard' ? '後台首頁' : '電子保固書建立');
@@ -1562,9 +1563,9 @@ function renderAdminHtml_(page, params) {
   const templateName = page === 'query' ? 'QueryApp' : (page === 'dashboard' ? 'DashboardApp' : 'AdminApp');
   const template = HtmlService.createTemplateFromFile(templateName);
   template.appConfigJson = JSON.stringify(getAdminAppConfig_(identity, params || {}));
-  template.adminPageUrl = buildAdminPageUrl_('admin');
-  template.queryPageUrl = buildAdminPageUrl_('query');
-  template.dashboardPageUrl = buildAdminPageUrl_('dashboard');
+  template.adminPageUrl = buildAdminPageUrl_('admin', verifiedAdminKey);
+  template.queryPageUrl = buildAdminPageUrl_('query', verifiedAdminKey);
+  template.dashboardPageUrl = buildAdminPageUrl_('dashboard', verifiedAdminKey);
   template.viewerEmail = identity.email || '';
   template.viewerRole = identity.role || 'staff';
   template.viewerIsManager = !!identity.isManager;
@@ -1698,10 +1699,13 @@ function buildAdminApiBase_() {
   return String(ScriptApp.getService().getUrl() || '').trim() || getPublicApiBase_();
 }
 
-function buildAdminPageUrl_(page) {
+function buildAdminPageUrl_(page, adminKey) {
   const base = String(ScriptApp.getService().getUrl() || '').trim();
-  if (!base) return '?page=' + encodeURIComponent(page);
-  return base + '?page=' + encodeURIComponent(page);
+  var query = '?page=' + encodeURIComponent(page);
+  var verifiedAdminKey = verifyAdminApiKey_(adminKey) ? String(adminKey || '').trim() : '';
+  if (verifiedAdminKey) query += '&adminKey=' + encodeURIComponent(verifiedAdminKey);
+  if (!base) return query;
+  return base + query;
 }
 
 function setAdminWebConfigForOps_(allowedEmails, publicApiBase) {
