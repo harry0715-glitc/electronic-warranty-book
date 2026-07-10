@@ -5,11 +5,62 @@ const SHEET_NAMES = {
   ADMIN_USERS: 'AdminUsers'
 };
 
+const SHEET_NAME_ALIASES = {
+  Warranties: ['Warranties', '保固書', '電子保固書', '保固案件'],
+  LineContacts: ['LineContacts', 'LINE綁定', 'LINE聯絡人', 'LINE綁定資料'],
+  Repairs: ['Repairs', '報修', '報修紀錄', '報修單'],
+  AdminUsers: ['AdminUsers', '管理帳號', '管理者', '管理員']
+};
+
+const HEADER_ALIASES = {
+  caseId: ['caseId', '案件編號'],
+  statusText: ['statusText', '保固狀態'],
+  projectName: ['projectName', '案件名稱'],
+  customerName: ['customerName', '客戶名稱'],
+  customerPhone: ['customerPhone', '客戶電話'],
+  address: ['address', '工程地點', '地址'],
+  scope: ['scope', '承攬範圍'],
+  completionDate: ['completionDate', '竣工日期'],
+  amount: ['amount', '結算金額'],
+  acceptanceDate: ['acceptanceDate', '驗收日期'],
+  warrantyStart: ['warrantyStart', '保固起日'],
+  warrantyEnd: ['warrantyEnd', '保固迄日'],
+  warrantyStatement: ['warrantyStatement', '保固聲明'],
+  issuerCompany: ['issuerCompany', '承攬廠商'],
+  issuerResponsiblePerson: ['issuerResponsiblePerson', '負責人'],
+  issuerAddress: ['issuerAddress', '公司地址'],
+  repairUrl: ['repairUrl', '報修連結'],
+  warrantyUrl: ['warrantyUrl', '保固書連結', '完整保固書連結'],
+  updatedAt: ['updatedAt', '更新時間'],
+  publicToken: ['publicToken', '公開Token', '公開憑證', '保固Token'],
+  repairId: ['repairId', '報修單號'],
+  warrantyCustomerPhone: ['warrantyCustomerPhone', '保固客戶電話'],
+  contactName: ['contactName', '聯絡人'],
+  phone: ['phone', '聯絡電話'],
+  issueType: ['issueType', '問題類型'],
+  description: ['description', '問題描述'],
+  preferredContactTime: ['preferredContactTime', '可聯絡時段'],
+  source: ['source', '來源'],
+  photoUploadStatus: ['photoUploadStatus', '照片上傳狀態'],
+  status: ['status', '狀態'],
+  createdAt: ['createdAt', '建立時間'],
+  normalizedPhone: ['normalizedPhone', '正規化手機', '手機(正規化)'],
+  rawPhone: ['rawPhone', '原始手機', '手機原值'],
+  userId: ['userId', 'LINE User ID', 'LINE使用者ID'],
+  displayName: ['displayName', 'LINE顯示名稱'],
+  pictureUrl: ['pictureUrl', '大頭貼'],
+  statusMessage: ['statusMessage', '狀態訊息'],
+  lastMessageText: ['lastMessageText', '最後訊息'],
+  lastBoundAt: ['lastBoundAt', '綁定時間'],
+  email: ['email', '電子郵件', 'Email'],
+  role: ['role', '角色'],
+  active: ['active', '啟用'],
+  name: ['name', '名稱'],
+  note: ['note', '備註']
+};
+
 const DEFAULT_PUBLIC_BASE = 'https://harry0715-glitc.github.io/electronic-warranty-book';
 const DEFAULT_REPAIR_URL = 'https://line.me/R/ti/p/@yhh1711p';
-const DEFAULT_ADMIN_SEND_PIN = '521527';
-const DEFAULT_ADMIN_API_KEY = '';
-
 const SCRIPT_PROPERTY_KEYS = {
   LINE_CHANNEL_ACCESS_TOKEN: 'LINE_CHANNEL_ACCESS_TOKEN',
   LINE_CHANNEL_SECRET: 'LINE_CHANNEL_SECRET',
@@ -29,12 +80,12 @@ function doGet(e) {
   const page = String(params.page || '').trim().toLowerCase();
 
   try {
-    if (page === 'dashboard') return renderAdminHtml_('dashboard');
-    if (page === 'admin') return renderAdminHtml_('admin');
-    if (page === 'query') return renderAdminHtml_('query');
+    if (page === 'dashboard') return renderAdminHtml_('dashboard', params);
+    if (page === 'admin') return renderAdminHtml_('admin', params);
+    if (page === 'query') return renderAdminHtml_('query', params);
 
     if (action === 'createRepair') {
-      const created = createRepair_(extractRepairInput_(params));
+      const created = createPublicRepair_(params);
       return output_({ success: true, repairId: created.repair.repairId, repair: created.repair, notify: created.notify }, params.callback);
     }
 
@@ -42,40 +93,8 @@ function doGet(e) {
       return output_(getWarrantyByToken_(params.token || ''), params.callback);
     }
 
-    if (action === 'getAdminSessionInfo') return output_(handleAdminAction_(params, function(identity) { return buildAdminSessionInfo_(identity); }), params.callback);
-    if (action === 'listRepairs') return output_(handleAdminAction_(params, function() { return listRepairs_(params.caseId || ''); }), params.callback);
-    if (action === 'deleteRepair') return output_(handleManagerAction_(params, function() { return deleteRepairRecord_(params.repairId || ''); }), params.callback);
-    if (action === 'updateRepairStatus') return output_(handleManagerAction_(params, function() { return updateRepairStatus_(params.repairId || '', params.status || '', params.notifyCustomer || ''); }), params.callback);
-    if (action === 'getWarrantyById') return output_(handleAdminAction_(params, function() { return getWarrantyById_(params.caseId || params.id || ''); }), params.callback);
-    if (action === 'findWarrantyByAddress') return output_(handleAdminAction_(params, function() { return getWarrantyByAddress_(params.address || ''); }), params.callback);
-    if (action === 'searchWarrantyAddresses') return output_(handleAdminAction_(params, function() { return searchWarrantyAddresses_(params.q || params.address || ''); }), params.callback);
-    if (action === 'searchWarrantyRecords') return output_(handleAdminAction_(params, function() { return searchWarrantyRecords_(params.q || ''); }), params.callback);
-    if (action === 'listWarrantyRecords') return output_(handleAdminAction_(params, function() { return listWarrantyRecords_(); }), params.callback);
-    if (action === 'deleteWarranty') return output_(handleManagerAction_(params, function() { return deleteWarrantyRecord_(params.caseId || ''); }), params.callback);
-    if (action === 'getLineBindingByPhone') return output_(handleAdminAction_(params, function() { return getLineBindingByPhone_(params.phone || ''); }), params.callback);
-    if (action === 'sendWarrantyCard') return output_(handleAdminAction_(params, function() { return sendWarrantyCardByPhone_(params.phone || '', params.caseId || '', params || {}); }), params.callback);
-    if (action === 'createWarranty') {
-      return output_(handleAdminAction_(params, function(identity) {
-        const warranty = normalizeWarranty_(extractWarrantyInput_(params));
-        if (warrantyExists_(warranty.caseId) && !identity.isManager) throw new Error('修改既有案件僅限管理者');
-        upsertWarranty_(warranty);
-        return { success: true, caseId: warranty.caseId, warranty: warranty };
-      }), params.callback);
-    }
-    if (action === 'health') return output_(handleAdminAction_(params, function(identity) {
-      return {
-        success: true,
-        service: 'warranty-apps-script',
-        time: new Date().toISOString(),
-        spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
-        spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
-        lineConfigured: getLineConfigStatus_(),
-        lastLineDebug: getLastLineDebug_()
-      };
-    }), params.callback);
-    if (action === 'lineDebug') return output_(handleAdminAction_(params, function() {
-      return { success: true, lastLineDebug: getLastLineDebug_(), binding: getLineBindingByPhone_(params.phone || '') };
-    }), params.callback);
+    const adminResult = routeAdminAction_(action, params);
+    if (adminResult !== null) return output_(adminResult, params.callback);
 
     return output_({ success: false, message: 'Unknown action' }, params.callback);
   } catch (error) {
@@ -96,24 +115,85 @@ function doPost(e) {
       return output_(setupLineConfigOnce_(payload));
     }
 
-    if (action === 'createWarranty') {
-      return output_(handleAdminAction_(payload, function(identity) {
-        const warranty = normalizeWarranty_(extractWarrantyInput_(payload.warranty || payload));
-        if (warrantyExists_(warranty.caseId) && !identity.isManager) throw new Error('修改既有案件僅限管理者');
-        upsertWarranty_(warranty);
-        return { success: true, caseId: warranty.caseId, warranty: warranty };
-      }));
-    }
-
     if (action === 'createRepair') {
-      const created = createRepair_(extractRepairInput_(payload.repair || payload));
+      const source = payload.repair ? Object.assign({}, payload, payload.repair) : payload;
+      const created = createPublicRepair_(source);
       return output_({ success: true, repairId: created.repair.repairId, repair: created.repair, notify: created.notify });
     }
+
+    const adminResult = routeAdminAction_(action, payload);
+    if (adminResult !== null) return output_(adminResult);
 
     return output_({ success: false, message: 'Unknown action' });
   } catch (error) {
     return output_({ success: false, message: error.message, stack: error.stack });
   }
+}
+
+// 管理端 action 統一路由。GET（JSONP，供 Apps Script 內建管理頁沿用）與
+// POST（GitHub Pages 管理頁，adminKey 放 request body，不進 URL）共用同一份邏輯。
+// 回傳 null 表示非管理 action。
+function routeAdminAction_(action, input) {
+  if (action === 'getAdminSessionInfo') return handleAdminAction_(input, function(identity) { return buildAdminSessionInfo_(identity); });
+  if (action === 'listRepairs') return handleAdminAction_(input, function() { return listRepairs_(input.caseId || ''); });
+  if (action === 'deleteRepair') return handleManagerAction_(input, function() { return deleteRepairRecord_(input.repairId || ''); });
+  if (action === 'updateRepairStatus') return handleManagerAction_(input, function() { return updateRepairStatus_(input.repairId || '', input.status || '', input.notifyCustomer || ''); });
+  if (action === 'getWarrantyById') return handleAdminAction_(input, function() { return getWarrantyById_(input.caseId || input.id || ''); });
+  if (action === 'findWarrantyByAddress') return handleAdminAction_(input, function() { return getWarrantyByAddress_(input.address || ''); });
+  if (action === 'searchWarrantyAddresses') return handleAdminAction_(input, function() { return searchWarrantyAddresses_(input.q || input.address || ''); });
+  if (action === 'searchWarrantyRecords') return handleAdminAction_(input, function() { return searchWarrantyRecords_(input.q || ''); });
+  if (action === 'listWarrantyRecords') return handleAdminAction_(input, function() { return listWarrantyRecords_(); });
+  if (action === 'deleteWarranty') return handleManagerAction_(input, function() { return deleteWarrantyRecord_(input.caseId || ''); });
+  if (action === 'getLineBindingByPhone') return handleAdminAction_(input, function() { return getLineBindingByPhone_(input.phone || ''); });
+  if (action === 'sendWarrantyCard') return handleAdminAction_(input, function() { return sendWarrantyCardByPhone_(input.phone || '', input.caseId || '', input || {}); });
+  if (action === 'createWarranty') {
+    return handleAdminAction_(input, function(identity) {
+      const warranty = normalizeWarranty_(extractWarrantyInput_(input.warranty || input));
+      if (warrantyExists_(warranty.caseId) && !identity.isManager) throw new Error('修改既有案件僅限管理者');
+      upsertWarranty_(warranty);
+      return { success: true, caseId: warranty.caseId, warranty: warranty };
+    });
+  }
+  if (action === 'health') return handleAdminAction_(input, function() {
+    return {
+      success: true,
+      service: 'warranty-apps-script',
+      time: new Date().toISOString(),
+      spreadsheetId: SpreadsheetApp.getActiveSpreadsheet().getId(),
+      spreadsheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
+      lineConfigured: getLineConfigStatus_(),
+      lastLineDebug: getLastLineDebug_()
+    };
+  });
+  if (action === 'lineDebug') return handleAdminAction_(input, function() {
+    return { success: true, lastLineDebug: getLastLineDebug_(), binding: getLineBindingByPhone_(input.phone || '') };
+  });
+  return null;
+}
+
+// 公開報修入口保護：
+// 1. 未帶有效 adminKey 的請求一律要求有效 publicToken（防止用連號 caseId 灌單）
+// 2. CacheService 頻率限制：單一 token 10 分鐘最多 5 筆、全站 1 小時最多 30 筆
+function createPublicRepair_(input) {
+  const isAdmin = verifyAdminApiKey_(input && input.adminKey);
+  if (!isAdmin) {
+    const token = String(input.token || '').trim();
+    if (!token) throw new Error('缺少保固 token，請從保固書連結重新開啟報修頁');
+    enforceRepairRateLimit_(token);
+  }
+  return createRepair_(extractRepairInput_(input));
+}
+
+function enforceRepairRateLimit_(token) {
+  const cache = CacheService.getScriptCache();
+  const tokenKey = 'rlRepair_' + String(token).slice(0, 64);
+  const globalKey = 'rlRepairGlobal';
+  const tokenCount = Number(cache.get(tokenKey) || 0);
+  const globalCount = Number(cache.get(globalKey) || 0);
+  if (tokenCount >= 5) throw new Error('此保固案件短時間內報修次數過多，請稍後再試');
+  if (globalCount >= 30) throw new Error('系統目前報修流量較大，請稍後再試');
+  cache.put(tokenKey, String(tokenCount + 1), 600);
+  cache.put(globalKey, String(globalCount + 1), 3600);
 }
 
 function parsePayload_(e) {
@@ -167,12 +247,10 @@ function verifyAdminApiKey_(submittedKey) {
 }
 
 function getAdminApiKey_() {
-  return String(
-    getScriptProperty_(SCRIPT_PROPERTY_KEYS.ADMIN_API_KEY)
-    || getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_ADMIN_SEND_PIN)
-    || DEFAULT_ADMIN_API_KEY
-    || DEFAULT_ADMIN_SEND_PIN
-  ).trim();
+  // 安全性：只接受 Script Properties 中明確設定的 ADMIN_API_KEY。
+  // 不再 fallback 到 LINE_ADMIN_SEND_PIN 或任何硬編碼預設值。
+  // 若未設定，verifyAdminApiKey_ 會一律回傳 false（金鑰驗證停用，僅剩 Google 帳號驗證路徑）。
+  return String(getScriptProperty_(SCRIPT_PROPERTY_KEYS.ADMIN_API_KEY) || '').trim();
 }
 
 function generatePublicToken_() {
@@ -188,7 +266,7 @@ function buildPublicRepairUrl_(token) {
 }
 
 function ensureWarrantyPublicTokenAtRow_(sheet, headers, rowIndex, row) {
-  const tokenIndex = headers.indexOf('publicToken');
+  const tokenIndex = normalizeHeaderRow_(headers).indexOf('publicToken');
   if (tokenIndex < 0) return String(rowToObject_(headers, row).publicToken || '').trim();
   const existing = String(row[tokenIndex] || '').trim();
   if (existing) return existing;
@@ -205,7 +283,7 @@ function getWarrantyByToken_(token) {
   const values = sheet.getDataRange().getValues();
   if (values.length <= 1) return { success: false, message: 'No data found' };
   const headers = values[0];
-  const tokenIndex = headers.indexOf('publicToken');
+  const tokenIndex = normalizeHeaderRow_(headers).indexOf('publicToken');
   if (tokenIndex < 0) return { success: false, message: 'public token column not found' };
   for (var i = 1; i < values.length; i++) {
     const rowToken = ensureWarrantyPublicTokenAtRow_(sheet, headers, i + 1, values[i]);
@@ -693,7 +771,7 @@ function repairToRow_(r) {
 
 function rowToWarranty_(headers, row) {
   const obj = {};
-  headers.forEach(function(header, index) { obj[header] = row[index]; });
+  normalizeHeaderRow_(headers).forEach(function(header, index) { obj[header] = row[index]; });
   const publicToken = String(obj.publicToken || '').trim();
   return {
     caseId: obj.caseId,
@@ -913,10 +991,46 @@ function upsertLineContact_(contact) {
 
 function rowToObject_(headers, row) {
   const obj = {};
-  headers.forEach(function(header, index) {
+  normalizeHeaderRow_(headers).forEach(function(header, index) {
     obj[header] = row[index];
   });
   return obj;
+}
+
+function normalizeHeaderKey_(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const lower = text.toLowerCase();
+  const keys = Object.keys(HEADER_ALIASES);
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    var aliases = HEADER_ALIASES[key] || [];
+    for (var j = 0; j < aliases.length; j++) {
+      if (String(aliases[j] || '').trim().toLowerCase() === lower) return key;
+    }
+  }
+  return text;
+}
+
+function normalizeHeaderRow_(headers) {
+  return (headers || []).map(function(header) {
+    return normalizeHeaderKey_(header);
+  });
+}
+
+function getSheetNameCandidates_(name) {
+  const canonical = String(name || '').trim();
+  return SHEET_NAME_ALIASES[canonical] || [canonical];
+}
+
+function findSheetByNameCandidates_(ss, name) {
+  const candidates = getSheetNameCandidates_(name).map(function(item) { return String(item || '').trim(); });
+  const sheets = ss.getSheets();
+  for (var i = 0; i < sheets.length; i++) {
+    var sheetName = String(sheets[i].getName() || '').trim();
+    if (candidates.indexOf(sheetName) >= 0) return sheets[i];
+  }
+  return null;
 }
 
 function maskUserId_(userId) {
@@ -926,9 +1040,11 @@ function maskUserId_(userId) {
 }
 
 function handleLineWebhook_(payload, e) {
+  // 安全性：Apps Script 讀不到 request header，無法驗 LINE 的 X-Line-Signature，
+  // 因此以 URL 上的 webhook key 作為必要驗證。key 未設定時一律拒絕，不再放行。
   const configuredKey = getScriptProperty_(SCRIPT_PROPERTY_KEYS.LINE_WEBHOOK_KEY);
   const incomingKey = e && e.parameter ? String(e.parameter.key || '') : '';
-  if (configuredKey && incomingKey !== configuredKey) {
+  if (!configuredKey || incomingKey !== configuredKey) {
     return output_({ success: false, message: 'Invalid webhook key' });
   }
 
@@ -1362,7 +1478,7 @@ function setupLineConfigOnce_(payload) {
 
 function getOrCreateSheet_(name, headers) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(name);
+  let sheet = findSheetByNameCandidates_(ss, name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
     sheet.appendRow(headers);
@@ -1377,14 +1493,15 @@ function getOrCreateSheet_(name, headers) {
 function ensureSheetHeaders_(sheet, headers) {
   if (!sheet || !headers || !headers.length) return;
   const current = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
-  const normalized = current.map(function(value) { return String(value || '').trim(); });
+  const normalized = normalizeHeaderRow_(current);
   let changed = false;
   headers.forEach(function(header, index) {
-    if (normalized[index] === header) return;
-    const foundIndex = normalized.indexOf(header);
+    const canonical = normalizeHeaderKey_(header);
+    if (normalized[index] === canonical) return;
+    const foundIndex = normalized.indexOf(canonical);
     if (foundIndex >= 0) return;
     sheet.getRange(1, index + 1).setValue(header);
-    normalized[index] = header;
+    normalized[index] = canonical;
     changed = true;
   });
   if (changed) sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
@@ -1431,17 +1548,20 @@ function authorizeLineMessagingAccess() {
   };
 }
 
-function renderAdminHtml_(page) {
-  const identity = getCurrentAdminIdentity_();
+function renderAdminHtml_(page, params) {
+  const identity = getRequestAdminIdentity_(params || {});
   if (!identity.allowed) {
+    const pageValue = String(page || 'dashboard');
+    const title = pageValue === 'query' ? '查詢保固書' : (pageValue === 'dashboard' ? '後台首頁' : '電子保固書建立');
+    const actionUrl = buildAdminPageUrl_(pageValue);
     return HtmlService
-      .createHtmlOutput('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Access denied</title></head><body style="font-family:Arial,sans-serif;padding:24px;line-height:1.8;"><h2>無法存取後台</h2><p>請使用已授權的 Google 帳號登入後再開啟此頁。</p><p>目前偵測帳號：' + escapeHtml_(identity.email || '未取得') + '</p><p>請到 Google Sheet 的 AdminUsers 工作表維護 email / role / active 欄位。</p></body></html>')
+      .createHtmlOutput('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Access denied</title></head><body style="font-family:Arial,sans-serif;padding:24px;line-height:1.8;max-width:720px;margin:0 auto;"><h2>無法存取後台</h2><p>目前這個 Apps Script 部署對部分個人 Google 帳號不一定拿得到登入者 email，所以就算你已經在 Google Sheet 加了帳號，也可能還是被拒絕。</p><p>目前偵測帳號：' + escapeHtml_(identity.email || '未取得') + '</p><p>你可以改用管理金鑰直接進入後台：</p><form method="get" action="' + escapeHtml_(actionUrl) + '" style="margin:16px 0;display:grid;gap:12px;"><input type="hidden" name="page" value="' + escapeHtml_(pageValue) + '"><label>管理金鑰 / PIN<br><input type="password" name="adminKey" style="width:100%;max-width:360px;padding:10px 12px;font-size:16px;"></label><button type="submit" style="width:fit-content;padding:10px 18px;font-size:16px;">用管理金鑰進入 ' + escapeHtml_(title) + '</button></form><p>如果你已經在 Google Sheet 設好帳號名單，之後我可以再幫你升級成正式的 Google Sign-In token 驗證版。</p><p>帳號名單工作表：管理帳號（AdminUsers）；表頭可用英文或中文：email / role / active，或 電子郵件 / 角色 / 啟用。</p></body></html>')
       .setTitle('後台存取限制');
   }
 
   const templateName = page === 'query' ? 'QueryApp' : (page === 'dashboard' ? 'DashboardApp' : 'AdminApp');
   const template = HtmlService.createTemplateFromFile(templateName);
-  template.appConfigJson = JSON.stringify(getAdminAppConfig_());
+  template.appConfigJson = JSON.stringify(getAdminAppConfig_(identity, params || {}));
   template.adminPageUrl = buildAdminPageUrl_('admin');
   template.queryPageUrl = buildAdminPageUrl_('query');
   template.dashboardPageUrl = buildAdminPageUrl_('dashboard');
@@ -1514,8 +1634,8 @@ function getAdminRoleMap_(values) {
 
 function normalizeAdminRole_(value) {
   const normalized = String(value || '').trim().toLowerCase();
-  if (normalized === 'manager' || normalized === 'admin' || normalized === 'owner') return 'manager';
-  if (normalized === 'staff' || normalized === 'editor' || normalized === 'user') return 'staff';
+  if (normalized === 'manager' || normalized === 'admin' || normalized === 'owner' || normalized === '管理者' || normalized === '主管') return 'manager';
+  if (normalized === 'staff' || normalized === 'editor' || normalized === 'user' || normalized === '一般人員' || normalized === '人員' || normalized === '一般') return 'staff';
   return '';
 }
 
@@ -1550,7 +1670,8 @@ function buildAdminSessionInfo_(identity) {
   };
 }
 
-function getAdminAppConfig_() {
+function getAdminAppConfig_(identity, params) {
+  const verifiedAdminKey = verifyAdminApiKey_((params && params.adminKey) || '') ? String(params.adminKey || '').trim() : '';
   return {
     apiBase: buildAdminApiBase_(),
     publicBase: DEFAULT_PUBLIC_BASE,
@@ -1561,7 +1682,8 @@ function getAdminAppConfig_() {
     repairOfficialUrl: DEFAULT_REPAIR_URL,
     repairFormBase: 'repair.html',
     warrantyPageBase: 'index.html',
-    useGoogleSessionAuth: true
+    useGoogleSessionAuth: !(identity && identity.authMode === 'adminKey'),
+    adminKey: verifiedAdminKey
   };
 }
 

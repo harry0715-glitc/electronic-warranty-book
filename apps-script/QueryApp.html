@@ -121,8 +121,10 @@
       if (!force) {
         const stored = getStoredAdminApiKey();
         if (stored) return stored;
+        const embedded = String(window.APP_CONFIG?.adminKey || '').trim();
+        if (embedded) return setStoredAdminApiKey(embedded);
       }
-      const input = window.prompt(`${actionLabel}需要輸入管理 API 金鑰`, force ? '' : getStoredAdminApiKey());
+      const input = window.prompt(`${actionLabel}需要輸入管理 API 金鑰`, force ? '' : (getStoredAdminApiKey() || String(window.APP_CONFIG?.adminKey || '').trim()));
       if (input === null) return null;
       return setStoredAdminApiKey(input);
     }

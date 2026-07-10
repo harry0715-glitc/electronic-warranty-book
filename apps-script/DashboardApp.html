@@ -30,7 +30,7 @@
       <h1>電子保固書後台</h1>
       <p>登入帳號：<strong><?= viewerEmail ?></strong>｜角色：<strong><?= viewerRole ?></strong></p>
       <p class="small">一般人員可新增與查詢；管理者可修改、刪除與核銷報修。</p>
-      <div class="status">帳號名單來源：Google Sheet 的 AdminUsers 工作表（私有，不放 GitHub）。</div>
+      <div class="status">帳號名單來源：Google Sheet 的管理帳號（AdminUsers）工作表（私有，不放 GitHub）。工作表名稱與表頭可用中英文。</div>
     </section>
     <section class="grid">
       <div class="card">
@@ -45,8 +45,8 @@
       </div>
       <div class="card">
         <h2>帳號管理說明</h2>
-        <p>請到同一份 Google Sheet 的 <strong>AdminUsers</strong> 工作表維護：</p>
-        <div class="status">email / role / active / name / note / updatedAt<br>role：manager 或 staff<br>active：TRUE 啟用</div>
+        <p>請到同一份 Google Sheet 的 <strong>管理帳號（AdminUsers）</strong> 工作表維護：</p>
+        <div class="status">表頭可用：email / role / active / name / note / updatedAt<br>或：電子郵件 / 角色 / 啟用 / 名稱 / 備註 / 更新時間<br>role 可填：manager、staff、管理者、一般人員<br>active 可填：TRUE、是、啟用</div>
       </div>
     </section>
   </div>

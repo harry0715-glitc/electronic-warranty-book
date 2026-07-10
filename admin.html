@@ -529,30 +529,28 @@
       return normalized;
     }
 
-    function buildAdminUrl(action, params = {}) {
+    // 管理 API 改走 POST：adminKey 放在 request body，不再出現在 URL
+    // （避免金鑰留在 Apps Script 執行紀錄、瀏覽器歷史與代理伺服器 log）。
+    // 函數名稱沿用 loadAdminJsonp 以維持既有呼叫點不變。
+    async function loadAdminJsonp(action, params = {}, retry = true) {
       const adminKey = requestAdminApiKey(action);
       if (adminKey === null) throw new Error('未提供管理 API 金鑰');
-      const search = new URLSearchParams({ action });
-      if (adminKey) search.set('adminKey', adminKey);
-      Object.entries(params).forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-        search.set(key, String(value));
+      const payload = Object.assign({}, params, { action });
+      if (adminKey) payload.adminKey = adminKey;
+      const response = await fetch(APP_CONFIG.apiBase, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
       });
-      return `${APP_CONFIG.apiBase}?${search.toString()}`;
-    }
-
-    async function loadAdminJsonp(action, params = {}, retry = true) {
-      const url = buildAdminUrl(action, params);
-      try {
-        return await loadJsonp(url);
-      } catch (error) {
-        if (retry && /管理 API 驗證失敗/.test(String(error && error.message || ''))) {
-          setStoredAdminApiKey('');
-          requestAdminApiKey(action, true);
-          return await loadAdminJsonp(action, params, false);
-        }
-        throw error;
+      if (!response.ok) throw new Error(`API 回應異常（HTTP ${response.status}）`);
+      const data = await response.json();
+      if (retry && data && data.success === false && /管理 API 驗證失敗|沒有後台權限/.test(String(data.message || ''))) {
+        setStoredAdminApiKey('');
+        const next = requestAdminApiKey(action, true);
+        if (next === null) return data;
+        return await loadAdminJsonp(action, params, false);
       }
+      return data;
     }
 
     async function fetchLineBindingByPhone(phone) {
