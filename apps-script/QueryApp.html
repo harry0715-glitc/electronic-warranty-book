@@ -210,16 +210,11 @@
       return (items || []).filter(item => item.status !== 'completed').length;
     }
 
-    async function redirectToEdit(caseId) {
-      if (!window.ADMIN_VIEWER_IS_MANAGER) {
-        alert('修改既有案件僅限管理者');
-        return;
-      }
-      sessionStorage.setItem('warranty_admin_edit_case_id', caseId);
+    function buildEditPageUrl(caseId) {
       const target = new URL(window.ADMIN_PAGE_URL, location.href);
       target.searchParams.set('editCaseId', caseId);
       target.searchParams.set('from', 'query');
-      location.href = target.toString();
+      return target.toString();
     }
 
     async function deleteWarrantyRecord(caseId) {
@@ -328,14 +323,10 @@
           綁定狀態：${formatBindingText(item)}
         </div>
         <div class="actions">
-          ${window.ADMIN_VIEWER_IS_MANAGER ? '<button class=\"secondary\" type=\"button\" data-action=\"edit\">修改</button><button class=\"danger\" type=\"button\" data-action=\"delete\">刪除</button>' : '<span class=\"small\">一般人員可查詢與檢視，修改/刪除限管理者</span>'}
+          ${window.ADMIN_VIEWER_IS_MANAGER ? `<a class="secondary btn" href="${buildEditPageUrl(item.caseId)}" target="_top">修改</a><button class=\"danger\" type=\"button\" data-action=\"delete\">刪除</button>` : '<span class=\"small\">一般人員可查詢與檢視，修改/刪除限管理者</span>'}
         </div>
       `;
-      const editButton = card.querySelector('[data-action="edit"]');
       const deleteButton = card.querySelector('[data-action="delete"]');
-      if (editButton) editButton.addEventListener('click', async () => {
-        await redirectToEdit(item.caseId);
-      });
       if (deleteButton) deleteButton.addEventListener('click', async () => {
         await deleteWarrantyRecord(item.caseId);
       });
