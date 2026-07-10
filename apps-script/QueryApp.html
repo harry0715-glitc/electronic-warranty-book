@@ -18,7 +18,7 @@
     .hero h1,.panel h2,.query-group h3 { margin:0; color:var(--gold); }
     .hero p,.small,.record-meta,.repair-meta { color:var(--muted); line-height:1.8; }
     .panel { padding:18px; display:grid; gap:14px; }
-    .actions,.record-badges,.repair-actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .actions,.record-badges,.repair-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
     .query-groups,.query-group,.record-list,.record-card,.record-title,.repair-wrap,.repair-list,.repair-item { display:grid; gap:12px; }
     .record-card,.repair-item { padding:14px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); }
     .record-head,.repair-head { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 12px; align-items:flex-start; }
@@ -36,6 +36,7 @@
     button, a.btn { border:0; border-radius:12px; padding:12px 18px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
     .primary { background:linear-gradient(180deg,#ecd7ac,#c89f60); color:#22190f; }
     .secondary { background:#2a241f; color:var(--ink); border:1px solid var(--line); }
+    .ghost { background:transparent; color:var(--gold); border:1px solid rgba(209,176,122,.28); }
     .danger { background:#4b1f1f; color:#ffe1e1; border:1px solid rgba(255,120,120,.28); }
   </style>
 </head>
@@ -45,9 +46,9 @@
       <h1>查詢保固書</h1>
       <p>這一頁專門用來查看案件、確認 LINE 綁定狀態、查看待處理報修，以及執行修改、刪除與核銷。</p>
       <div class="actions">
-        <a class="secondary btn" href="<?= dashboardPageUrl ?>">回後台入口</a>
-        <a class="secondary btn" href="<?= adminPageUrl ?>">建立保固書</a>
-        <button class="primary" type="button" id="refreshBtn">重新整理案件清單</button>
+        <a class="secondary btn" href="<?= dashboardPageUrl ?>">後台入口</a>
+        <a class="primary btn" href="<?= adminPageUrl ?>">建立保固書</a>
+        <button class="ghost" type="button" id="refreshBtn">重新整理案件清單</button>
       </div>
     </section>
 
