@@ -217,6 +217,20 @@
       return target.toString();
     }
 
+    async function stageEditRecord(caseId) {
+      sessionStorage.setItem('warranty_admin_edit_case_id', caseId);
+      try {
+        const result = await loadAdminJsonp('getWarrantyById', { caseId });
+        if (result?.success && result.warranty) {
+          sessionStorage.setItem('warranty_admin_edit_record', JSON.stringify(result.warranty));
+        } else {
+          sessionStorage.removeItem('warranty_admin_edit_record');
+        }
+      } catch (_) {
+        sessionStorage.removeItem('warranty_admin_edit_record');
+      }
+    }
+
     async function deleteWarrantyRecord(caseId) {
       if (!window.ADMIN_VIEWER_IS_MANAGER) {
         alert('刪除案件僅限管理者');
@@ -326,7 +340,13 @@
           ${window.ADMIN_VIEWER_IS_MANAGER ? `<a class="secondary btn" href="${buildEditPageUrl(item.caseId)}" target="_top">修改</a><button class=\"danger\" type=\"button\" data-action=\"delete\">刪除</button>` : '<span class=\"small\">一般人員可查詢與檢視，修改/刪除限管理者</span>'}
         </div>
       `;
+      const editLink = card.querySelector('a[href][target="_top"]');
       const deleteButton = card.querySelector('[data-action="delete"]');
+      if (editLink) editLink.addEventListener('click', async (event) => {
+        event.preventDefault();
+        await stageEditRecord(item.caseId);
+        window.top.location.href = editLink.href;
+      });
       if (deleteButton) deleteButton.addEventListener('click', async () => {
         await deleteWarrantyRecord(item.caseId);
       });

@@ -627,6 +627,24 @@
       hideResultPanel();
     }
 
+    function getStagedEditRecord(caseId) {
+      const stagedCaseId = String(sessionStorage.getItem('warranty_admin_edit_case_id') || '').trim();
+      const raw = sessionStorage.getItem('warranty_admin_edit_record');
+      if (!raw || stagedCaseId !== String(caseId || '').trim()) return null;
+      try {
+        const parsed = JSON.parse(raw);
+        if (String(parsed?.caseId || '').trim() !== String(caseId || '').trim()) return null;
+        return parsed;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function clearStagedEditRecord() {
+      sessionStorage.removeItem('warranty_admin_edit_case_id');
+      sessionStorage.removeItem('warranty_admin_edit_record');
+    }
+
     async function loadRecordForEdit(caseId) {
       const result = await loadAdminJsonp('getWarrantyById', { caseId });
       if (!result || !result.success || !result.warranty) {
@@ -800,11 +818,18 @@
     async function handleIncomingEditRequest() {
       const caseId = String(getQueryParam('editCaseId') || '').trim();
       if (!caseId) return;
-      const stagedCaseId = sessionStorage.getItem('warranty_admin_edit_case_id');
-      if (stagedCaseId === caseId) {
-        sessionStorage.removeItem('warranty_admin_edit_case_id');
-        await loadRecordForEdit(caseId);
-        return;
+      const stagedRecord = getStagedEditRecord(caseId);
+      if (stagedRecord) {
+        const record = normalizeExistingRecord(stagedRecord);
+        if (record && record.caseId) {
+          currentEditingCaseId = record.caseId || '';
+          saveRecord(record);
+          populateForm(record);
+          await showSaved(record, '已載入案件，可修改後重新儲存');
+          document.getElementById('statusBox').textContent = `修改模式｜案件編號 ${record.caseId}`;
+          clearStagedEditRecord();
+          return;
+        }
       }
       if (!window.ADMIN_VIEWER_IS_MANAGER) {
         alert('修改既有案件僅限管理者');
