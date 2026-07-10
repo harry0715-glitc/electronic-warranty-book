@@ -1555,8 +1555,15 @@ function renderAdminHtml_(page, params) {
     const pageValue = String(page || 'dashboard');
     const title = pageValue === 'query' ? '查詢保固書' : (pageValue === 'dashboard' ? '後台首頁' : '電子保固書建立');
     const actionUrl = buildAdminPageUrl_(pageValue);
+    const editCaseId = String((params && params.editCaseId) || '').trim();
+    const from = String((params && params.from) || '').trim();
+    const preservedInputs = [
+      '<input type="hidden" name="page" value="' + escapeHtml_(pageValue) + '">',
+      editCaseId ? '<input type="hidden" name="editCaseId" value="' + escapeHtml_(editCaseId) + '">' : '',
+      from ? '<input type="hidden" name="from" value="' + escapeHtml_(from) + '">' : ''
+    ].join('');
     return HtmlService
-      .createHtmlOutput('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Access denied</title></head><body style="font-family:Arial,sans-serif;padding:24px;line-height:1.8;max-width:720px;margin:0 auto;"><h2>無法存取後台</h2><p>目前這個 Apps Script 部署對部分個人 Google 帳號不一定拿得到登入者 email，所以就算你已經在 Google Sheet 加了帳號，也可能還是被拒絕。</p><p>目前偵測帳號：' + escapeHtml_(identity.email || '未取得') + '</p><p>你可以改用管理金鑰直接進入後台：</p><form method="get" action="' + escapeHtml_(actionUrl) + '" style="margin:16px 0;display:grid;gap:12px;"><input type="hidden" name="page" value="' + escapeHtml_(pageValue) + '"><label>管理金鑰 / PIN<br><input type="password" name="adminKey" style="width:100%;max-width:360px;padding:10px 12px;font-size:16px;"></label><button type="submit" style="width:fit-content;padding:10px 18px;font-size:16px;">用管理金鑰進入 ' + escapeHtml_(title) + '</button></form><p>如果你已經在 Google Sheet 設好帳號名單，之後我可以再幫你升級成正式的 Google Sign-In token 驗證版。</p><p>帳號名單工作表：管理帳號（AdminUsers）；表頭可用英文或中文：email / role / active，或 電子郵件 / 角色 / 啟用。</p></body></html>')
+      .createHtmlOutput('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Access denied</title></head><body style="font-family:Arial,sans-serif;padding:24px;line-height:1.8;max-width:720px;margin:0 auto;"><h2>無法存取後台</h2><p>目前這個 Apps Script 部署對部分個人 Google 帳號不一定拿得到登入者 email，所以就算你已經在 Google Sheet 加了帳號，也可能還是被拒絕。</p><p>目前偵測帳號：' + escapeHtml_(identity.email || '未取得') + '</p><p>你可以改用管理金鑰直接進入後台：</p><form method="get" action="' + escapeHtml_(actionUrl) + '" style="margin:16px 0;display:grid;gap:12px;">' + preservedInputs + '<label>管理金鑰 / PIN<br><input type="password" name="adminKey" style="width:100%;max-width:360px;padding:10px 12px;font-size:16px;"></label><button type="submit" style="width:fit-content;padding:10px 18px;font-size:16px;">用管理金鑰進入 ' + escapeHtml_(title) + '</button></form><p>如果你已經在 Google Sheet 設好帳號名單，之後我可以再幫你升級成正式的 Google Sign-In token 驗證版。</p><p>帳號名單工作表：管理帳號（AdminUsers）；表頭可用英文或中文：email / role / active，或 電子郵件 / 角色 / 啟用。</p></body></html>')
       .setTitle('後台存取限制');
   }
 
