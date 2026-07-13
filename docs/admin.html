@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <base target="_top" />
+  <title>電子保固書建立</title>
+  <style>
+    @font-face { font-family: "LINE Seed TW"; src: url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_Rg.woff2") format("woff2"), url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_TTF_Rg.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "LINE Seed TW"; src: url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_Bd.woff2") format("woff2"), url("https://harry0715-glitc.github.io/electronic-warranty-book/assets/fonts/LINESeedTW_TTF_Bd.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+    :root { --bg:#141210; --panel:#1f1b18; --panel2:#171311; --gold:#d1b07a; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(209,176,122,.22); }
+    * { box-sizing: border-box; }
+    html, body { margin:0; min-height:100%; background:linear-gradient(180deg,#0f0d0c,#181410 48%,#120f0d); color:var(--ink); font-family:"LINE Seed TW","Noto Sans TC","Microsoft JhengHei",sans-serif; }
+    body { padding:20px 14px 40px; }
+    .wrap { width:min(980px,100%); margin:0 auto; display:grid; gap:18px; }
+    .hero,.panel { background:linear-gradient(180deg,rgba(37,31,26,.96),rgba(20,17,15,.98)); border:1px solid var(--line); border-radius:22px; box-shadow:0 20px 60px rgba(0,0,0,.28); }
+    .hero { padding:24px; display:grid; gap:10px; }
+    .hero h1 { margin:0; color:var(--gold); font-size:30px; }
+    .hero p,.hint,.small { margin:0; color:var(--muted); line-height:1.8; }
+    .steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:4px; }
+    .step { padding:12px 14px; border-radius:14px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); }
+    .step strong { display:block; color:var(--gold); margin-bottom:4px; }
+    .quick-tools { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+    .notice-list { margin:0; padding-left:1.2em; display:grid; gap:6px; color:#f2e3c4; }
+    .panel { padding:18px; }
+    .panel h2 { margin:0 0 14px; color:var(--gold); font-size:18px; }
+    form { display:grid; gap:14px; }
+    .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .field, .field-full { display:grid; gap:6px; }
+    .field-full { grid-column:1 / -1; }
+    label { font-size:13px; color:var(--muted); }
+    input, textarea { width:100%; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:#13110f; color:var(--ink); padding:12px 13px; font:inherit; }
+    textarea { min-height:108px; resize:vertical; }
+    .form-note { padding:12px 14px; border-radius:14px; background:rgba(209,176,122,.08); border:1px solid rgba(209,176,122,.18); color:#f2e3c4; }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; }
+    button, a.btn { border:0; border-radius:12px; padding:12px 18px; font:inherit; font-weight:700; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
+    .primary { background:linear-gradient(180deg,#ecd7ac,#c89f60); color:#22190f; }
+    .secondary { background:#2a241f; color:var(--ink); border:1px solid var(--line); }
+    .status { padding:12px 14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.08); color:#f2e3c4; }
+    .result { display:grid; gap:10px; }
+    .hidden { display:none !important; }
+    .modal-backdrop { position:fixed; inset:0; background:rgba(8,6,5,.68); display:flex; align-items:center; justify-content:center; padding:20px; z-index:9999; backdrop-filter:blur(6px); }
+    .modal-card { width:min(420px,100%); background:linear-gradient(180deg,rgba(37,31,26,.98),rgba(20,17,15,.99)); border:1px solid var(--line); border-radius:24px; box-shadow:0 24px 80px rgba(0,0,0,.45); padding:24px 20px 18px; display:grid; gap:18px; text-align:center; }
+    .modal-message { color:var(--ink); font-size:20px; font-weight:700; line-height:1.6; white-space:pre-line; }
+    .modal-actions { display:flex; justify-content:center; }
+    .modal-actions button { min-width:120px; }
+    @media (max-width: 900px) { .fields,.steps,.quick-tools { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>電子保固書建立</h1>
+      <div class="quick-tools actions">
+        <a class="btn secondary" href="dashboard.html">後台入口</a>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>基本資訊</h2>
+      <form id="warrantyForm">
+        <div class="form-note">
+          <ul class="notice-list">
+            <li>請先確認客戶名稱、案件名稱、地址與保固日期是否正確。</li>
+            <li>建立成功後會先跳出完成提醒；完整保固書、綁定狀態與資訊卡發送功能請從「後台入口 → 查詢保固書」進入。</li>
+            <li>查詢載入既有案件後，才會顯示下方完整保固書連結、綁定狀態與發送資訊卡區塊。</li>
+          </ul>
+        </div>
+        <div class="fields">
+          <div class="field"><label>案件名稱</label><input name="projectName" value="楠梓 四季心 B7/6F" required /></div>
+          <div class="field"><label>客戶名稱</label><input name="customerName" value="王先生" required /></div>
+          <div class="field"><label>客戶電話</label><input name="customerPhone" value="0912-345-678" required /></div>
+          <div class="field"><label>工程地點</label><input name="address" value="高雄市楠梓區右昌街 358 號 6 樓之 7" required /></div>
+          <div class="field-full"><label>承攬範圍</label><input name="scope" value="如契約書（報價單內容）" required /></div>
+          <div class="field"><label>竣工日期</label><input type="date" name="completionDate" value="2026-06-13" required /></div>
+          <div class="field"><label>驗收日期</label><input type="date" name="acceptanceDate" value="2026-06-13" required /></div>
+          <div class="field"><label>保固起日</label><input type="date" name="warrantyStart" value="2026-06-13" required /></div>
+          <div class="field"><label>保固迄日</label><input type="date" name="warrantyEnd" value="2027-06-12" required /></div>
+          <div class="field-full"><label>結算金額</label><input name="amount" value="615000" inputmode="numeric" placeholder="請輸入阿拉伯數字，例如 615000" required /></div>
+          <div class="field"><label>承攬廠商</label><input name="issuerCompany" value="楓根室內裝修設計有限公司" required /></div>
+          <div class="field"><label>負責人</label><input name="issuerResponsiblePerson" value="林 榮 祥" required /></div>
+          <div class="field-full"><label>公司地址</label><input name="issuerAddress" value="高雄市楠梓區清成街 31 號" required /></div>
+          <div class="field-full"><label>保固聲明</label><textarea name="warrantyStatement" required>上列工程自驗收合格之日起計算，在保固期內，如發生局部或全部損壞時，本公司願負完全修復責任（如遇天災及不可抗拒因素或人為之故意行為，則不在此限），並拋棄先訴抗辯權，僅此聲明。</textarea></div>
+        </div>
+        <div class="actions">
+          <button class="primary" type="button" id="submitWarrantyBtn" onclick="return window.inlineSubmitWarranty();">建立保固書</button>
+        </div>
+        <div class="status hidden" id="debugStatusBox" aria-hidden="true"></div>
+      </form>
+    </section>
+
+    <section class="panel hidden" id="resultPanel">
+      <h2>已建立案件</h2>
+      <div class="result">
+        <div class="status" id="statusBox"></div>
+        <div class="status hidden"><a id="warrantyLink" href="#" target="_blank" style="color:#ffe2a7;word-break:break-all;">尚未建立</a></div>
+        <div class="actions" style="margin-top:8px;">
+          <button class="primary" type="button" id="openWarrantyPageBtn" onclick="return window.inlineOpenWarrantyPage();">開啟完整保固書</button>
+        </div>
+        <div class="small">LINE 綁定狀態（客戶需先加入 OA 並傳送手機號碼）</div>
+        <div class="status" id="lineBindingStatus">尚未查詢</div>
+        <div class="actions">
+          <button class="secondary" type="button" id="copyBindGuideBtn" onclick="return window.inlineCopyBindGuide();">複製綁定說明</button>
+          <button class="secondary" type="button" id="refreshBindingBtn" onclick="return window.inlineRefreshBindingStatus();">更新綁定狀態</button>
+          <button class="primary" type="button" id="sendWarrantyCardBtn" onclick="return window.inlineSendWarrantyCard();">官方帳號送出資訊卡</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop hidden" id="appModal" aria-hidden="true">
+    <div class="modal-card" role="alertdialog" aria-modal="true" aria-labelledby="appModalMessage">
+      <div class="modal-message" id="appModalMessage"></div>
+      <div class="modal-actions">
+        <button class="primary" type="button" id="appModalConfirmBtn">確定</button>
+      </div>
+    </div>
+  </div>
+
+    <script>
+      (function () {
+        var modal = document.getElementById('appModal');
+        var messageNode = document.getElementById('appModalMessage');
+        var confirmBtn = document.getElementById('appModalConfirmBtn');
+        function hideAppModal() {
+          if (!modal) return;
+          modal.classList.add('hidden');
+          modal.setAttribute('aria-hidden', 'true');
+        }
+        function showAppModal(message) {
+          if (!modal || !messageNode) return;
+          messageNode.textContent = String(message || '').trim();
+          modal.classList.remove('hidden');
+          modal.setAttribute('aria-hidden', 'false');
+          if (confirmBtn) confirmBtn.focus();
+        }
+        window.hideAppModal = hideAppModal;
+        window.showAppModal = showAppModal;
+        window.alert = function (message) {
+          showAppModal(message);
+        };
+        if (confirmBtn) confirmBtn.onclick = hideAppModal;
+        if (modal) {
+          modal.onclick = function (event) {
+            if (event.target === modal) hideAppModal();
+          };
+        }
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape') hideAppModal();
+        });
+      })();
+    </script>
+
+    <script src="api-config.js?v=20260713-admin-shell"></script>
+  <script>
+    (function () {
+      function readJson(key) {
+        try { return JSON.parse(sessionStorage.getItem(key) || 'null'); }
+        catch (_) { return null; }
+      }
+      var query = new URLSearchParams(location.search || '');
+      var storedEditCaseId = sessionStorage.getItem('warranty_admin_edit_case_id') || '';
+      var storedEditRecord = readJson('warranty_admin_edit_record');
+      window.APP_CONFIG = Object.assign({}, window.APP_CONFIG || {}, {
+        apiBase: (window.APP_CONFIG && window.APP_CONFIG.adminApiBase) || (window.APP_CONFIG && window.APP_CONFIG.apiBase) || '',
+        useGoogleSessionAuth: false
+      });
+      window.ADMIN_PAGE_URL = 'admin.html';
+      window.QUERY_PAGE_URL = 'query.html';
+      window.DASHBOARD_PAGE_URL = 'dashboard.html';
+      window.ADMIN_VIEWER_EMAIL = '';
+      window.ADMIN_VIEWER_ROLE = 'manager';
+      window.ADMIN_VIEWER_IS_MANAGER = true;
+      window.INITIAL_EDIT_CASE_ID = String(query.get('editCaseId') || storedEditCaseId || '').trim();
+      window.__SSR_EDIT_BOOTSTRAP = storedEditRecord && storedEditRecord.caseId === window.INITIAL_EDIT_CASE_ID ? storedEditRecord : null;
+      window.__SSR_EDIT_BINDING = null;
+      window.INITIAL_EDIT_RECORD = window.__SSR_EDIT_BOOTSTRAP;
+      window.INITIAL_EDIT_BINDING = null;
+      window.__SSR_EDIT_BINDING_TEXT = '尚未查詢';
+      window.ADMIN_DEBUG = /(?:^|[?&])debug=1(?:&|$)/.test(location.search);
+      if (window.ADMIN_DEBUG) {
+        var debugBox = document.getElementById('debugStatusBox');
+        if (debugBox) debugBox.classList.remove('hidden');
+      }
+    })();
+  </script>
+
+    <script>
+      (function () {
+        function trimValue(value) {
+          return String(value == null ? '' : value).replace(/^\s+|\s+$/g, '');
+        }
+        function setDebug(message) {
+          if (!window.ADMIN_DEBUG) return;
+          var box = document.getElementById('debugStatusBox');
+          if (box) box.textContent = trimValue(message) || '排錯待命';
+        }
+        window.setAdminDebug = setDebug;
+        function setStatus(message) {
+          var box = document.getElementById('statusBox');
+          if (box) box.textContent = trimValue(message);
+        }
+        function normalizePhone(value) {
+          var digits = String(value || '').replace(/\D+/g, '');
+          if (!digits) return '';
+          if (digits.indexOf('886') === 0) digits = '0' + digits.slice(3);
+          if (digits.length === 9 && digits.indexOf('9') === 0) digits = '0' + digits;
+          return digits;
+        }
+        function getCurrentWarrantyUrl() {
+          var link = document.getElementById('warrantyLink');
+          if (!link) return '';
+          var href = trimValue(link.getAttribute('href') || '');
+          if (href && href !== '#') return href;
+          var text = trimValue(link.textContent || '');
+          if (/^https?:\/\//i.test(text)) return text;
+          return '';
+        }
+        function copyTextLegacy(text) {
+          var content = trimValue(text);
+          if (!content) return false;
+          var temp = document.createElement('textarea');
+          temp.value = content;
+          temp.setAttribute('readonly', 'readonly');
+          temp.style.position = 'fixed';
+          temp.style.opacity = '0';
+          temp.style.left = '-9999px';
+          document.body.appendChild(temp);
+          temp.focus();
+          temp.select();
+          var copied = false;
+          try {
+            copied = !!document.execCommand('copy');
+          } catch (_) {
+            copied = false;
+          }
+          document.body.removeChild(temp);
+          return copied;
+        }
+        function buildBindingGuideText() {
+          var oaUrl = (window.APP_CONFIG && window.APP_CONFIG.repairOfficialUrl) || 'https://line.me/R/ti/p/@yhh1711p';
+          return [
+            '本公司採電子保固卡',
+            '請先加入官方 LINE：' + oaUrl,
+            '加入後，請直接訊息文字回傳您自己的手機號碼。',
+            '例如：0912345678',
+            '謝謝您。'
+          ].join('\n');
+        }
+        function renderInlineBindingStatus(bindingResult) {
+          var box = document.getElementById('lineBindingStatus');
+          if (!box) return;
+          if (!bindingResult || bindingResult.success === false) {
+            box.textContent = '查詢失敗｜' + ((bindingResult && bindingResult.message) || '未知錯誤');
+            return;
+          }
+          if (bindingResult.bound) {
+            box.textContent = '已綁定｜手機 ' + (bindingResult.phone || '') + '｜LINE ' + (bindingResult.displayName || '未命名') + '｜' + (bindingResult.userIdMasked || '');
+            return;
+          }
+          box.textContent = '未綁定｜請客戶先加入 OA 並回傳建立保固書時填寫的手機號碼';
+        }
+        function getEditingCaseId() {
+          var injected = window.__SSR_EDIT_BOOTSTRAP;
+          if (injected && injected.caseId) return trimValue(injected.caseId);
+          return trimValue(window.INITIAL_EDIT_CASE_ID || '');
+        }
+        function buildRecord() {
+          var form = document.getElementById('warrantyForm');
+          var e = form.elements;
+          return {
+            caseId: getEditingCaseId(),
+            projectName: trimValue(e.projectName && e.projectName.value),
+            customerName: trimValue(e.customerName && e.customerName.value),
+            customerPhone: trimValue(e.customerPhone && e.customerPhone.value),
+            address: trimValue(e.address && e.address.value),
+            scope: trimValue(e.scope && e.scope.value),
+            completionDate: trimValue(e.completionDate && e.completionDate.value),
+            amount: trimValue(e.amount && e.amount.value),
+            acceptanceDate: trimValue(e.acceptanceDate && e.acceptanceDate.value),
+            warrantyStart: trimValue(e.warrantyStart && e.warrantyStart.value),
+            warrantyEnd: trimValue(e.warrantyEnd && e.warrantyEnd.value),
+            warrantyStatement: trimValue(e.warrantyStatement && e.warrantyStatement.value),
+            issuerCompany: trimValue(e.issuerCompany && e.issuerCompany.value),
+            issuerResponsiblePerson: trimValue(e.issuerResponsiblePerson && e.issuerResponsiblePerson.value),
+            issuerAddress: trimValue(e.issuerAddress && e.issuerAddress.value),
+            repairUrl: '',
+            warrantyUrl: '',
+            publicToken: ''
+          };
+        }
+        function renderSaved(result, isEditing) {
+          var record = result && result.warranty ? result.warranty : null;
+          var caseId = record && record.caseId ? record.caseId : '';
+          var warrantyUrl = record && record.warrantyUrl ? record.warrantyUrl : '';
+          var panel = document.getElementById('resultPanel');
+          var link = document.getElementById('warrantyLink');
+          var submitBtn = document.getElementById('submitWarrantyBtn');
+          if (panel) panel.classList.remove('hidden');
+          if (link) {
+            link.href = warrantyUrl || '#';
+            link.textContent = warrantyUrl || '尚未建立';
+          }
+          if (record && record.caseId) {
+            window.__SSR_EDIT_BOOTSTRAP = record;
+            window.INITIAL_EDIT_CASE_ID = record.caseId;
+            if (submitBtn) submitBtn.textContent = '更新保固書';
+          }
+          setStatus((isEditing ? '已更新｜案件編號 ' : '已建立｜案件編號 ') + caseId);
+        }
+        window.inlineSubmitWarranty = function () {
+          try {
+            var record = buildRecord();
+            var isEditing = !!record.caseId;
+            setDebug('inline submit: built');
+            if (!record.projectName || !record.customerName || !record.customerPhone || !record.address) {
+              setDebug('inline submit: required field missing');
+              alert('請先填完案件名稱、客戶名稱、客戶電話、案件地址');
+              return false;
+            }
+            if (!window.confirm((isEditing ? '更新保固書' : '建立保固書') + '\n案件名稱：' + record.projectName + '\n客戶名稱：' + record.customerName + '\n案件地址：' + record.address)) {
+              setDebug('inline submit: confirm cancelled');
+              return false;
+            }
+            if (!(window.google && google.script && google.script.run)) {
+              setDebug('inline submit: google.script.run missing');
+              alert('google.script.run 不可用');
+              return false;
+            }
+            setDebug('inline submit: rpc start');
+            setStatus(isEditing ? '更新中｜寫入後端資料' : '建立中｜寫入後端資料');
+            google.script.run
+              .withSuccessHandler(function (result) {
+                if (!result || !result.success || !result.warranty) {
+                  setDebug('inline submit: rpc failed');
+                  setStatus('後端寫入失敗');
+                  alert((result && result.message) || '案件寫入後端失敗');
+                  return;
+                }
+                renderSaved(result, isEditing);
+                setDebug('inline submit: rpc success｜caseId=' + (result.warranty.caseId || ''));
+                alert((isEditing ? '修改完成｜案件編號 ' : '建立完成｜案件編號 ') + (result.warranty.caseId || ''));
+              })
+              .withFailureHandler(function (error) {
+                var message = (error && error.message) || String(error) || 'RPC 呼叫失敗';
+                setDebug('inline submit: rpc failure｜' + message);
+                setStatus('建立失敗｜' + message);
+                alert('建立失敗：' + message);
+              })
+              .adminRpc('createWarranty', record);
+          } catch (error) {
+            var message = (error && error.message) || String(error) || '未知錯誤';
+            setDebug('inline submit: catch｜' + message);
+            setStatus('建立失敗｜' + message);
+            alert('建立失敗：' + message);
+          }
+          return false;
+        };
+        window.inlineSendWarrantyCard = function () {
+          try {
+            var record = buildRecord();
+            if (!(window.google && google.script && google.script.run)) {
+              setDebug('inline send card: google.script.run missing');
+              alert('google.script.run 不可用');
+              return false;
+            }
+            if (!record.caseId) {
+              setDebug('inline send card: missing caseId');
+              alert('請先載入既有案件後，再送出資訊卡');
+              return false;
+            }
+            if (!record.customerPhone) {
+              setDebug('inline send card: missing phone');
+              alert('缺少客戶電話，無法送出資訊卡');
+              return false;
+            }
+            setDebug('inline send card: rpc start｜caseId=' + record.caseId);
+            setStatus('送出中｜案件編號 ' + record.caseId);
+            var payload = {
+              phone: record.customerPhone || '',
+              caseId: record.caseId || '',
+              projectName: record.projectName || '',
+              customerName: record.customerName || '',
+              customerPhone: record.customerPhone || '',
+              address: record.address || '',
+              scope: record.scope || '',
+              completionDate: record.completionDate || '',
+              amount: record.amount || '',
+              acceptanceDate: record.acceptanceDate || '',
+              warrantyStart: record.warrantyStart || '',
+              warrantyEnd: record.warrantyEnd || '',
+              warrantyStatement: record.warrantyStatement || '',
+              issuerCompany: record.issuerCompany || '',
+              issuerResponsiblePerson: record.issuerResponsiblePerson || '',
+              issuerAddress: record.issuerAddress || '',
+              repairUrl: record.repairUrl || '',
+              warrantyUrl: record.warrantyUrl || ''
+            };
+            google.script.run
+              .withSuccessHandler(function (result) {
+                if (!result || !result.success) {
+                  setDebug('inline send card: rpc failed');
+                  setStatus('送出失敗｜案件編號 ' + record.caseId);
+                  alert((result && result.message) || '送出失敗');
+                  return;
+                }
+                setDebug('inline send card: rpc success｜caseId=' + record.caseId);
+                setStatus('已由 OA 送出資訊卡｜案件編號 ' + record.caseId);
+                alert((result && result.message) || '已送出保固資訊卡');
+              })
+              .withFailureHandler(function (error) {
+                var message = (error && error.message) || String(error) || 'RPC 呼叫失敗';
+                setDebug('inline send card: rpc failure｜' + message);
+                setStatus('送出失敗｜案件編號 ' + record.caseId);
+                alert('送出失敗：' + message);
+              })
+              .adminRpc('sendWarrantyCard', payload);
+          } catch (error) {
+            var message = (error && error.message) || String(error) || '未知錯誤';
+            setDebug('inline send card: catch｜' + message);
+            setStatus('送出失敗｜' + message);
+            alert('送出失敗：' + message);
+          }
+          return false;
+        };
+        window.inlineOpenWarrantyPage = function () {
+          try {
+            var url = getCurrentWarrantyUrl();
+            if (!url) {
+              setDebug('inline open warranty: missing url');
+              alert('尚未取得完整保固書連結');
+              return false;
+            }
+            setDebug('inline open warranty: open');
+            setStatus('已開啟完整保固書');
+            window.open(url + (url.indexOf('?') >= 0 ? '&' : '?') + 'from=admin', '_blank', 'noopener');
+          } catch (error) {
+            var message = (error && error.message) || String(error) || '未知錯誤';
+            setDebug('inline open warranty: catch｜' + message);
+            alert('開啟失敗：' + message);
+          }
+          return false;
+        };
+        window.inlineCopyBindGuide = function () {
+          try {
+            var record = buildRecord();
+            var text = buildBindingGuideText();
+            if (!copyTextLegacy(text)) {
+              setDebug('inline copy bind guide: copy failed');
+              alert('複製失敗，請改用手動複製');
+              return false;
+            }
+
+            setStatus('已複製綁定說明｜案件編號 ' + (record.caseId || ''));
+          } catch (error) {
+            var message = (error && error.message) || String(error) || '未知錯誤';
+            setDebug('inline copy bind guide: catch｜' + message);
+            alert('複製失敗：' + message);
+          }
+          return false;
+        };
+        window.inlineRefreshBindingStatus = function () {
+          try {
+            var record = buildRecord();
+            var phone = normalizePhone(record.customerPhone || '');
+            if (!(window.google && google.script && google.script.run)) {
+              setDebug('inline refresh binding: google.script.run missing');
+              alert('google.script.run 不可用');
+              return false;
+            }
+            if (!record.caseId) {
+              setDebug('inline refresh binding: missing caseId');
+              alert('請先載入既有案件後，再更新綁定狀態');
+              return false;
+            }
+            if (!phone) {
+              setDebug('inline refresh binding: missing phone');
+              alert('缺少客戶電話，無法更新綁定狀態');
+              return false;
+            }
+            setDebug('inline refresh binding: rpc start｜caseId=' + record.caseId + '｜phone=' + phone);
+            setStatus('更新中｜案件編號 ' + record.caseId);
+            google.script.run
+              .withSuccessHandler(function (result) {
+                renderInlineBindingStatus(result);
+                if (result && result.bound) setStatus('已更新 LINE 綁定狀態｜案件編號 ' + record.caseId);
+                else setStatus('此手機尚未完成 LINE 綁定｜案件編號 ' + record.caseId);
+                setDebug('inline refresh binding: rpc success｜bound=' + !!(result && result.bound));
+              })
+              .withFailureHandler(function (error) {
+                var message = (error && error.message) || String(error) || 'RPC 呼叫失敗';
+                setDebug('inline refresh binding: rpc failure｜' + message);
+                setStatus('更新失敗｜案件編號 ' + record.caseId);
+                alert('更新綁定狀態失敗：' + message);
+              })
+              .adminRpc('getLineBindingByPhone', { phone: phone });
+          } catch (error) {
+            var message = (error && error.message) || String(error) || '未知錯誤';
+            setDebug('inline refresh binding: catch｜' + message);
+            setStatus('更新失敗｜' + message);
+            alert('更新綁定狀態失敗：' + message);
+          }
+          return false;
+        };
+      })();
+    </script>
+
+    <script>
+      (function bootstrapSsrEditMode() {
+        try {
+          const record = window.__SSR_EDIT_BOOTSTRAP;
+          if (!record || !record.caseId) return;
+          const form = document.getElementById('warrantyForm');
+          if (!form) return;
+          document.querySelector('.hero h1').textContent = '電子保固書修改';
+          const submitBtn = document.getElementById('submitWarrantyBtn');
+          if (submitBtn) submitBtn.textContent = '更新保固書';
+          form.elements.projectName.value = record.projectName || '';
+          form.elements.customerName.value = record.customerName || '';
+          form.elements.customerPhone.value = record.customerPhone || '';
+          form.elements.address.value = record.address || '';
+          form.elements.scope.value = record.scope || '';
+          form.elements.completionDate.value = String(record.completionDate || '').slice(0, 10);
+          form.elements.acceptanceDate.value = String(record.acceptanceDate || '').slice(0, 10);
+          form.elements.warrantyStart.value = String(record.warrantyStart || '').slice(0, 10);
+          form.elements.warrantyEnd.value = String(record.warrantyEnd || '').slice(0, 10);
+          form.elements.amount.value = record.amount || '';
+          form.elements.issuerCompany.value = (record.issuer && record.issuer.company) || record.issuerCompany || '';
+          form.elements.issuerResponsiblePerson.value = (record.issuer && record.issuer.responsiblePerson) || record.issuerResponsiblePerson || '';
+          form.elements.issuerAddress.value = (record.issuer && record.issuer.address) || record.issuerAddress || '';
+          form.elements.warrantyStatement.value = record.warrantyStatement || '';
+          const resultPanel = document.getElementById('resultPanel');
+          if (resultPanel) resultPanel.classList.remove('hidden');
+          const statusBox = document.getElementById('statusBox');
+          if (statusBox) statusBox.textContent = `修改模式｜案件編號 ${record.caseId}｜狀態 ${record.statusText || ''}`;
+          const warrantyLink = document.getElementById('warrantyLink');
+          if (warrantyLink) {
+            warrantyLink.href = record.warrantyUrl || '#';
+            warrantyLink.textContent = record.warrantyUrl || '尚未建立';
+          }
+          const lineBindingStatus = document.getElementById('lineBindingStatus');
+          if (lineBindingStatus) lineBindingStatus.textContent = window.__SSR_EDIT_BINDING_TEXT || '尚未查詢';
+        } catch (error) {
+          if (window.setAdminDebug) window.setAdminDebug('ssr bootstrap failed｜' + ((error && error.message) || error));
+        }
+      })();
+    </script>
+
+
+  <script>
+    function getBaseUrl() {
+      if (window.APP_CONFIG && APP_CONFIG.publicBase) return APP_CONFIG.publicBase.replace(/\/$/, '');
+      return location.origin + location.pathname.replace(/\/[^/]*$/, '');
+    }
+
+    function getQueryParam(name) {
+      return new URLSearchParams(location.search).get(name);
+    }
+
+    function readJsonScript(id) {
+      const node = document.getElementById(id);
+      if (!node) return null;
+      try {
+        return JSON.parse(node.textContent || 'null');
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function setDebugStatus(message) {
+      if (!window.ADMIN_DEBUG) return;
+      const box = document.getElementById('debugStatusBox');
+      if (box) box.textContent = String(message || '').trim() || '排錯待命';
+    }
+
+    function getLiffLaunchUrl(record) {
+      const liffId = String((window.APP_CONFIG && window.APP_CONFIG.liffId) || '').trim();
+      const token = String((record && record.publicToken) || '').trim();
+      if (!liffId || !token) return '';
+      const params = new URLSearchParams({ token });
+      return `https://liff.line.me/${encodeURIComponent(liffId)}?${params.toString()}`;
+    }
+
+    function toIsoDate(value) {
+      const text = String(value || '').trim();
+      const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+      if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+      const parsed = new Date(text);
+      if (Number.isNaN(parsed.getTime())) return text;
+      const year = parsed.getFullYear();
+      const month = String(parsed.getMonth() + 1).padStart(2, '0');
+      const day = String(parsed.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatDateText(value) {
+      const normalized = toIsoDate(value);
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
+      if (!match) return value || '未提供';
+      return `${match[1]}/${match[2]}/${match[3]}`;
+    }
+
+    function buildShareMessage(record) {
+      const liffUrl = getLiffLaunchUrl(record);
+      return [
+        '您好，以下是您的電子保固書入口：',
+        `客戶名稱：${record.customerName || '未提供'}`,
+        `案件編號：${record.caseId || '未提供'}`,
+        `保固期間：${formatDateText(record.warrantyStart)} 至 ${formatDateText(record.warrantyEnd)}`,
+        '',
+        `LINE 入口：${liffUrl || record.warrantyUrl}`,
+        `網頁版：${record.warrantyUrl}`
+      ].join('\n');
+    }
+
+    function normalizePhone(value) {
+      let digits = String(value || '').replace(/\D+/g, '');
+      if (!digits) return '';
+      if (digits.startsWith('886')) digits = `0${digits.slice(3)}`;
+      if (digits.length === 9 && digits.startsWith('9')) digits = `0${digits}`;
+      return digits;
+    }
+
+    function buildBindingGuide(record) {
+      const oaUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || 'https://line.me/R/ti/p/@yhh1711p';
+      return [
+        '本公司採電子保固卡',
+        `請先加入官方 LINE：${oaUrl}`,
+        '加入後，請直接訊息文字回傳您自己的手機號碼。',
+        '例如：0912345678',
+        '謝謝您。'
+      ].join('\n');
+    }
+
+    function normalizeAddress(value) {
+      return String(value || '').trim().replace(/\s+/g, '').toLowerCase();
+    }
+
+    function findLocalCaseByAddress(address) {
+      const normalized = normalizeAddress(address);
+      if (!normalized) return null;
+      const cases = Object.values(getCases());
+      return cases.find(item => normalizeAddress(item && item.address) === normalized)
+        || cases.find(item => normalizeAddress(item && item.address).includes(normalized) || normalized.includes(normalizeAddress(item && item.address)));
+    }
+
+    function normalizeKeyword(value) {
+      return String(value || '').trim().replace(/\s+/g, '').toLowerCase();
+    }
+
+    function searchLocalAddressSuggestions(query) {
+      const raw = String(query || '').trim();
+      const normalized = normalizeKeyword(raw);
+      const phone = normalizePhone(raw);
+      const seen = new Set();
+      return Object.values(getCases())
+        .slice()
+        .reverse()
+        .filter(item => {
+          if (!normalized && !phone) return true;
+          const fields = [(item && item.caseId), (item && item.address), (item && item.customerName), (item && item.customerPhone), (item && item.projectName), (item && item.statusText)];
+          const keywordMatch = normalized && fields.some(field => normalizeKeyword(field).includes(normalized));
+          const phoneMatch = phone && normalizePhone((item && item.customerPhone) || '') === phone;
+          return keywordMatch || phoneMatch;
+        })
+        .filter(item => {
+          const key = `${item.caseId || ''}|${item.address || ''}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, 8)
+        .map(item => ({
+          caseId: item.caseId || '',
+          address: item.address || '',
+          customerName: item.customerName || '',
+          customerPhone: item.customerPhone || '',
+          projectName: item.projectName || '',
+          statusText: item.statusText || ''
+        }));
+    }
+
+    function loadJsonp(url) {
+      return new Promise((resolve, reject) => {
+        const callbackName = '__jsonp_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        const script = document.createElement('script');
+        const cleanup = () => {
+          if (script.parentNode) script.parentNode.removeChild(script);
+          try { delete window[callbackName]; } catch (_) { window[callbackName] = undefined; }
+        };
+        window[callbackName] = (payload) => {
+          cleanup();
+          resolve(payload);
+        };
+        script.onerror = () => {
+          cleanup();
+          reject(new Error('地址查詢失敗'));
+        };
+        script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName;
+        document.body.appendChild(script);
+      });
+    }
+
+    async function findRemoteCaseByAddress(address) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return null;
+      const url = `${APP_CONFIG.apiBase}?action=findWarrantyByAddress&address=${encodeURIComponent(address)}`;
+      const result = await loadJsonp(url);
+      if (!result || !result.success || !result.warranty) return null;
+      return result.warranty;
+    }
+
+    async function findRemoteCase(itemOrQuery) {
+      const raw = String(itemOrQuery || '').trim();
+      const item = typeof itemOrQuery === 'object' && itemOrQuery ? itemOrQuery : null;
+      if ((item && item.caseId) && (window.APP_CONFIG && window.APP_CONFIG.apiBase)) {
+        const url = `${APP_CONFIG.apiBase}?action=getWarranty&id=${encodeURIComponent(item.caseId)}`;
+        const result = await loadJsonp(url);
+        if ((result && result.success) && result.warranty) return result.warranty;
+      }
+      return await findRemoteCaseByAddress((item && item.address) || raw);
+    }
+
+    async function searchRemoteAddressSuggestions(query) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return [];
+      const url = `${APP_CONFIG.apiBase}?action=searchWarrantyRecords&q=${encodeURIComponent(query)}`;
+      const result = await loadJsonp(url);
+      return Array.isArray((result && result.items)) ? result.items : [];
+    }
+
+    function normalizeExistingRecord(record) {
+      if (!record) return null;
+      const baseUrl = getBaseUrl();
+      const normalized = {
+        caseId: String(record.caseId || '').trim(),
+        projectName: String(record.projectName || '').trim(),
+        customerName: String(record.customerName || '').trim(),
+        customerPhone: String(record.customerPhone || '').trim(),
+        address: String(record.address || '').trim(),
+        scope: String(record.scope || '').trim(),
+        completionDate: toIsoDate(record.completionDate || ''),
+        amount: String(record.amount || '').trim(),
+        acceptanceDate: toIsoDate(record.acceptanceDate || ''),
+        warrantyStart: toIsoDate(record.warrantyStart || ''),
+        warrantyEnd: toIsoDate(record.warrantyEnd || ''),
+        warrantyStatement: String(record.warrantyStatement || '').trim(),
+        issuer: {
+          company: String(((record.issuer && record.issuer.company)) || record.issuerCompany || '').trim(),
+          responsiblePerson: String(((record.issuer && record.issuer.responsiblePerson)) || record.issuerResponsiblePerson || '').trim(),
+          address: String(((record.issuer && record.issuer.address)) || record.issuerAddress || '').trim()
+        },
+        repairUrl: String(record.repairUrl || '').trim(),
+        warrantyUrl: String(record.warrantyUrl || '').trim(),
+        publicToken: String(record.publicToken || '').trim()
+      };
+      normalized.statusText = String(record.statusText || deriveStatusText(normalized.warrantyStart, normalized.warrantyEnd)).trim() || '日期未設定';
+      if (!normalized.repairUrl) normalized.repairUrl = (window.APP_CONFIG && APP_CONFIG.repairOfficialUrl) || `${baseUrl}/repair.html?id=${encodeURIComponent(normalized.caseId)}`;
+      if (!normalized.warrantyUrl) normalized.warrantyUrl = `${baseUrl}/index.html?id=${encodeURIComponent(normalized.caseId)}`;
+      return normalized;
+    }
+
+    function populateForm(record) {
+      form.elements.projectName.value = record.projectName || '';
+      form.elements.customerName.value = record.customerName || '';
+      form.elements.customerPhone.value = record.customerPhone || '';
+      form.elements.address.value = record.address || '';
+      form.elements.scope.value = record.scope || '';
+      form.elements.completionDate.value = toIsoDate(record.completionDate || '');
+      form.elements.amount.value = record.amount || '';
+      form.elements.acceptanceDate.value = toIsoDate(record.acceptanceDate || '');
+      form.elements.warrantyStart.value = toIsoDate(record.warrantyStart || '');
+      form.elements.warrantyEnd.value = toIsoDate(record.warrantyEnd || '');
+      form.elements.warrantyStatement.value = record.warrantyStatement || '';
+      form.elements.issuerCompany.value = ((record.issuer && record.issuer.company)) || '';
+      form.elements.issuerResponsiblePerson.value = ((record.issuer && record.issuer.responsiblePerson)) || '';
+      form.elements.issuerAddress.value = ((record.issuer && record.issuer.address)) || '';
+    }
+
+    async function openCaseByAddress(address) {
+      const raw = String(address || '').trim();
+      if (!raw) {
+        alert('請先輸入關鍵字');
+        return;
+      }
+      const localMatches = searchLocalAddressSuggestions(raw);
+      const remoteMatches = await searchRemoteAddressSuggestions(raw);
+      const merged = mergeSuggestionItems(localMatches, remoteMatches);
+      const first = merged[0];
+      if (!first) {
+        alert('查無符合的案件');
+        return;
+      }
+      const local = (first.caseId && getCases()[first.caseId]) || findLocalCaseByAddress(first.address || raw);
+      const matched = normalizeExistingRecord(await findRemoteCase(first) || local);
+      if (!matched || !matched.caseId) {
+        alert('查無符合的案件');
+        return;
+      }
+      saveRecord(matched);
+      populateForm(matched);
+      await showSaved(matched, '已載入既有案件');
+      document.getElementById('statusBox').textContent = `已載入既有案件｜案件編號 ${matched.caseId}｜狀態 ${matched.statusText}`;
+      document.getElementById('lookupMenu').classList.add('hidden');
+      document.getElementById('resultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function confirmCreate(record, mode) {
+      const actionLabel = mode === 'save' ? '儲存草稿' : mode === 'update' ? '更新保固書' : '建立保固書';
+      return window.confirm([
+        `請再次確認以下資料是否正確：`,
+        `案件名稱：${record.projectName}`,
+        `客戶名稱：${record.customerName}`,
+        `案件地址：${record.address}`,
+        `保固期間：${formatDateText(record.warrantyStart)} 至 ${formatDateText(record.warrantyEnd)}`,
+        '',
+        `按下「確定」後將${actionLabel}。`,
+        `之後可在「查詢保固書」清單中再修改或刪除。`
+      ].join('\n'));
+    }
+
+    async function copyText(text) {
+      if (!text) return;
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const temp = document.createElement('textarea');
+      temp.value = text;
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      temp.remove();
+    }
+
+    function getCases() {
+      try { return JSON.parse(localStorage.getItem('warranty_cases') || '{}'); }
+      catch (error) { return {}; }
+    }
+
+    function setCases(cases) {
+      localStorage.setItem('warranty_cases', JSON.stringify(cases));
+    }
+
+    function nextCaseId() {
+      const year = new Date().getFullYear();
+      const prefix = `FG-${year}-`;
+      const numbers = Object.keys(getCases())
+        .filter(key => key.startsWith(prefix))
+        .map(key => Number(key.slice(prefix.length)))
+        .filter(num => Number.isFinite(num));
+      const next = (numbers.length ? Math.max(...numbers) : 0) + 1;
+      return prefix + String(next).padStart(3, '0');
+    }
+
+    function deriveStatusText(start, end) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const startDate = new Date(toIsoDate(start) + 'T00:00:00');
+      const endDate = new Date(toIsoDate(end) + 'T00:00:00');
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return '日期未設定';
+      if (today < startDate) return '尚未生效';
+      if (today > endDate) return '已過保';
+      return '保固生效中';
+    }
+
+    function normalizeAmountDigits(value) {
+      return String(value || '').replace(/[^\d]/g, '');
+    }
+
+    function sectionToUpperChinese(section) {
+      const digits = ['零', '壹', '貳', '參', '肆', '伍', '陸', '柒', '捌', '玖'];
+      const units = ['', '拾', '佰', '仟'];
+      let text = '';
+      let zeroPending = false;
+      const raw = String(section || '');
+      for (let i = 0; i < raw.length; i += 1) {
+        const num = Number(raw[i]);
+        const unitIndex = raw.length - i - 1;
+        if (num === 0) {
+          zeroPending = text !== '';
+          continue;
+        }
+        if (zeroPending) {
+          text += '零';
+          zeroPending = false;
+        }
+        text += digits[num] + units[unitIndex];
+      }
+      return text;
+    }
+
+    function numberToUpperChinese(value) {
+      const digitsOnly = normalizeAmountDigits(value).replace(/^0+/, '') || '0';
+      if (digitsOnly === '0') return '零';
+      const bigUnits = ['', '萬', '億', '兆'];
+      const padded = digitsOnly.padStart(Math.ceil(digitsOnly.length / 4) * 4, '0');
+      const groups = padded.match(/.{1,4}/g) || [];
+      let result = '';
+      let zeroBetweenGroups = false;
+      groups.forEach((group, index) => {
+        const groupText = sectionToUpperChinese(group);
+        const hasValue = Number(group) > 0;
+        const unit = bigUnits[groups.length - index - 1] || '';
+        if (!hasValue) {
+          if (result) zeroBetweenGroups = true;
+          return;
+        }
+        if (result && (zeroBetweenGroups || Number(group) < 1000)) result += '零';
+        result += groupText + unit;
+        zeroBetweenGroups = false;
+      });
+      return result.replace(/零+/g, '零').replace(/零$/g, '');
+    }
+
+    function formatAmountText(value) {
+      const digitsOnly = normalizeAmountDigits(value);
+      if (!digitsOnly) return String(value || '').trim();
+      const amountNumber = Number(digitsOnly);
+      if (!Number.isFinite(amountNumber)) return String(value || '').trim();
+      return `新台幣 ${numberToUpperChinese(digitsOnly)} 元整（${amountNumber.toLocaleString('en-US')} 元）`;
+    }
+
+    function buildRecord(form) {
+      const warrantyStart = toIsoDate(form.elements.warrantyStart.value);
+      const warrantyEnd = toIsoDate(form.elements.warrantyEnd.value);
+      return {
+        caseId: currentEditingCaseId || '',
+        statusText: deriveStatusText(warrantyStart, warrantyEnd),
+        projectName: form.elements.projectName.value.trim(),
+        customerName: form.elements.customerName.value.trim(),
+        customerPhone: form.elements.customerPhone.value.trim(),
+        address: form.elements.address.value.trim(),
+        scope: form.elements.scope.value.trim(),
+        completionDate: toIsoDate(form.elements.completionDate.value),
+        amount: formatAmountText(form.elements.amount.value),
+        acceptanceDate: toIsoDate(form.elements.acceptanceDate.value),
+        warrantyStart,
+        warrantyEnd,
+        warrantyStatement: form.elements.warrantyStatement.value.trim(),
+        issuer: {
+          company: form.elements.issuerCompany.value.trim(),
+          responsiblePerson: form.elements.issuerResponsiblePerson.value.trim(),
+          address: form.elements.issuerAddress.value.trim()
+        },
+        repairUrl: '',
+        warrantyUrl: '',
+        publicToken: ''
+      };
+    }
+
+    function saveRecord(record) {
+      const cases = getCases();
+      cases[record.caseId] = record;
+      setCases(cases);
+      return record;
+    }
+
+    function getStoredAdminApiKey() {
+      return String(sessionStorage.getItem('warranty_admin_api_key') || '').trim();
+    }
+
+    function setStoredAdminApiKey(value) {
+      const normalized = String(value || '').trim();
+      if (normalized) sessionStorage.setItem('warranty_admin_api_key', normalized);
+      else sessionStorage.removeItem('warranty_admin_api_key');
+      return normalized;
+    }
+
+    function requestAdminApiKey(actionLabel, force = false) {
+      if ((window.APP_CONFIG && window.APP_CONFIG.useGoogleSessionAuth)) return '';
+      if (!force) {
+        const stored = getStoredAdminApiKey();
+        if (stored) return stored;
+        const embedded = String((window.APP_CONFIG && window.APP_CONFIG.adminKey) || '').trim();
+        if (embedded) return setStoredAdminApiKey(embedded);
+      }
+      const input = window.prompt(`${actionLabel}需要輸入管理 API 金鑰`, force ? '' : (getStoredAdminApiKey() || String((window.APP_CONFIG && window.APP_CONFIG.adminKey) || '').trim()));
+      if (input === null) return null;
+      return setStoredAdminApiKey(input);
+    }
+
+    function buildAdminUrl(action, params = {}) {
+      const adminKey = requestAdminApiKey(action);
+      if (adminKey === null) throw new Error('未提供管理 API 金鑰');
+      const search = new URLSearchParams({ action });
+      if (adminKey) search.set('adminKey', adminKey);
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        search.set(key, String(value));
+      });
+      return `${APP_CONFIG.apiBase}?${search.toString()}`;
+    }
+
+    // 主要傳輸改用 google.script.run（HtmlService 原生 RPC）：
+    // 身分隱含傳遞、不依賴第三方 cookie，手機 / LINE WebView 一樣可靠。
+    // JSONP 僅作為 google.script.run 不存在時的備援。
+    function callAdminRpc(action, params = {}) {
+      return new Promise((resolve, reject) => {
+        try {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler((error) => reject(new Error((error && error.message) || 'RPC 呼叫失敗')))
+            .adminRpc(action, params);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+
+    async function loadAdminJsonp(action, params = {}, retry = true) {
+      if (window.google && google.script && google.script.run) {
+        return await callAdminRpc(action, params);
+      }
+      const url = buildAdminUrl(action, params);
+      try {
+        return await loadJsonp(url);
+      } catch (error) {
+        if (retry && /管理 API 驗證失敗/.test(String(error && error.message || ''))) {
+          setStoredAdminApiKey('');
+          requestAdminApiKey(action, true);
+          return await loadAdminJsonp(action, params, false);
+        }
+        throw error;
+      }
+    }
+
+    async function fetchLineBindingByPhone(phone) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return null;
+      const normalized = normalizePhone(phone);
+      if (!normalized) return { success: false, bound: false, message: '缺少手機號碼' };
+      return await loadAdminJsonp('getLineBindingByPhone', { phone: normalized });
+    }
+
+    async function sendWarrantyCardViaApi(record) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) throw new Error('未設定 API');
+      const normalized = normalizePhone(record.customerPhone || '');
+      const params = {
+        phone: normalized,
+        caseId: record.caseId || '',
+        projectName: record.projectName || '',
+        customerName: record.customerName || '',
+        customerPhone: record.customerPhone || '',
+        address: record.address || '',
+        scope: record.scope || '',
+        completionDate: record.completionDate || '',
+        amount: record.amount || '',
+        acceptanceDate: record.acceptanceDate || '',
+        warrantyStart: record.warrantyStart || '',
+        warrantyEnd: record.warrantyEnd || '',
+        warrantyStatement: record.warrantyStatement || '',
+        issuerCompany: ((record.issuer && record.issuer.company)) || '',
+        issuerResponsiblePerson: ((record.issuer && record.issuer.responsiblePerson)) || '',
+        issuerAddress: ((record.issuer && record.issuer.address)) || '',
+        repairUrl: record.repairUrl || '',
+        warrantyUrl: record.warrantyUrl || ''
+      };
+      return await loadAdminJsonp('sendWarrantyCard', params);
+    }
+
+    function renderLineBindingStatus(bindingResult, record) {
+      const box = document.getElementById('lineBindingStatus');
+      if (!bindingResult || bindingResult.success === false) {
+        box.textContent = `查詢失敗｜${(bindingResult && bindingResult.message) || '未知錯誤'}`;
+        return;
+      }
+      if (bindingResult.bound) {
+        box.textContent = `已綁定｜手機 ${bindingResult.phone}｜LINE ${bindingResult.displayName || '未命名'}｜${bindingResult.userIdMasked || ''}`;
+        return;
+      }
+      box.textContent = '未綁定｜請客戶先加入 OA 並回傳建立保固書時填寫的手機號碼';
+    }
+
+    async function refreshLineBindingStatus(record, notify = false) {
+      // 頁面初次載入時優先用伺服器注入的綁定狀態，免打 API；手動更新時才即時查
+      if (!notify && window.INITIAL_EDIT_BINDING) {
+        const injectedBinding = window.INITIAL_EDIT_BINDING;
+        window.INITIAL_EDIT_BINDING = null;
+        renderLineBindingStatus(injectedBinding, record);
+        return injectedBinding;
+      }
+      const binding = await fetchLineBindingByPhone(record.customerPhone || '');
+      renderLineBindingStatus(binding, record);
+      if (notify) {
+        document.getElementById('statusBox').textContent = (binding && binding.bound)
+          ? `已更新 LINE 綁定狀態｜案件編號 ${record.caseId}`
+          : `此手機尚未完成 LINE 綁定｜案件編號 ${record.caseId}`;
+      }
+      return binding;
+    }
+
+    let currentEditingCaseId = String(window.INITIAL_EDIT_CASE_ID || '').trim();
+
+    function hideResultPanel() {
+      document.getElementById('resultPanel').classList.add('hidden');
+      document.getElementById('statusBox').textContent = '';
+    }
+
+    function resetCreateMode() {
+      currentEditingCaseId = '';
+      form.reset();
+      hideResultPanel();
+    }
+
+    function getStagedEditRecord(caseId) {
+      const stagedCaseId = String(sessionStorage.getItem('warranty_admin_edit_case_id') || '').trim();
+      const raw = sessionStorage.getItem('warranty_admin_edit_record');
+      if (!raw || stagedCaseId !== String(caseId || '').trim()) return null;
+      try {
+        const parsed = JSON.parse(raw);
+        if (String((parsed && parsed.caseId) || '').trim() !== String(caseId || '').trim()) return null;
+        return parsed;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function clearStagedEditRecord() {
+      sessionStorage.removeItem('warranty_admin_edit_case_id');
+      sessionStorage.removeItem('warranty_admin_edit_record');
+    }
+
+    async function loadRecordForEdit(caseId) {
+      const result = await loadAdminJsonp('getWarrantyById', { caseId });
+      if (!result || !result.success || !result.warranty) {
+        alert((result && result.message) || '讀取案件失敗');
+        return false;
+      }
+      const record = normalizeExistingRecord(result.warranty);
+      currentEditingCaseId = record.caseId || '';
+      saveRecord(record);
+      populateForm(record);
+      await showSaved(record, '已載入案件，可修改後重新儲存');
+      document.getElementById('statusBox').textContent = `修改模式｜案件編號 ${record.caseId}`;
+      document.getElementById('resultPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return true;
+    }
+
+    async function openRecordForEdit(caseId) {
+      if (!window.ADMIN_VIEWER_IS_MANAGER) {
+        alert('修改既有案件僅限管理者');
+        return;
+      }
+      await loadRecordForEdit(caseId);
+    }
+
+    function renderSavedShell(record, modeText) {
+      document.querySelector('.hero h1').textContent = '電子保固書修改';
+      document.getElementById('submitWarrantyBtn').textContent = '更新保固書';
+      document.getElementById('resultPanel').classList.remove('hidden');
+      document.getElementById('statusBox').textContent = `${modeText}｜案件編號 ${record.caseId}｜狀態 ${record.statusText}`;
+
+      const warrantyLink = document.getElementById('warrantyLink');
+      warrantyLink.href = record.warrantyUrl;
+      warrantyLink.textContent = record.warrantyUrl;
+      document.getElementById('openWarrantyPageBtn').onclick = () => {
+        window.open(record.warrantyUrl + '&from=admin', '_blank', 'noopener');
+      };
+      document.getElementById('copyBindGuideBtn').onclick = async () => {
+        await copyText(buildBindingGuide(record));
+        document.getElementById('statusBox').textContent = `已複製綁定說明｜案件編號 ${record.caseId}`;
+      };
+      document.getElementById('refreshBindingBtn').onclick = async () => {
+        await refreshLineBindingStatus(record, true);
+      };
+      document.getElementById('sendWarrantyCardBtn').onclick = async () => {
+        document.getElementById('statusBox').textContent = `送出中｜案件編號 ${record.caseId}`;
+        try {
+          const result = await sendWarrantyCardViaApi(record);
+          if (!result || !result.success) {
+            alert((result && result.message) || '送出失敗');
+            document.getElementById('statusBox').textContent = `送出失敗｜案件編號 ${record.caseId}`;
+            return;
+          }
+          document.getElementById('statusBox').textContent = `已由 OA 送出資訊卡｜案件編號 ${record.caseId}`;
+        } catch (error) {
+          alert(error.message || '送出失敗');
+          document.getElementById('statusBox').textContent = `送出失敗｜案件編號 ${record.caseId}`;
+        }
+      };
+
+
+    async function showSaved(record, modeText) {
+      renderSavedShell(record, modeText);
+      await refreshLineBindingStatus(record, false);
+    }
+
+    async function pushToApi(record) {
+      if (!window.APP_CONFIG || !APP_CONFIG.apiBase) return { success: false, message: '未設定 API' };
+      const params = {
+        caseId: record.caseId || '',
+        projectName: record.projectName || '',
+        customerName: record.customerName || '',
+        customerPhone: record.customerPhone || '',
+        address: record.address || '',
+        scope: record.scope || '',
+        completionDate: record.completionDate || '',
+        amount: record.amount || '',
+        acceptanceDate: record.acceptanceDate || '',
+        warrantyStart: record.warrantyStart || '',
+        warrantyEnd: record.warrantyEnd || '',
+        warrantyStatement: record.warrantyStatement || '',
+        issuerCompany: ((record.issuer && record.issuer.company)) || '',
+        issuerResponsiblePerson: ((record.issuer && record.issuer.responsiblePerson)) || '',
+        issuerAddress: ((record.issuer && record.issuer.address)) || '',
+        repairUrl: record.repairUrl || '',
+        warrantyUrl: record.warrantyUrl || '',
+        publicToken: record.publicToken || ''
+      };
+      try {
+        return await loadAdminJsonp('createWarranty', params);
+      } catch (error) {
+        console.warn('pushToApi failed', error);
+        return { success: false, message: error.message || 'pushToApi failed' };
+      }
+    }
+
+    const form = document.getElementById('warrantyForm');
+    const amountInput = form.elements.amount;
+
+    (function bootstrapInjectedEditMode() {
+      const caseId = String(window.INITIAL_EDIT_CASE_ID || '').trim();
+      const injected = window.INITIAL_EDIT_RECORD;
+      if (!caseId || !injected || String(injected.caseId || '').trim() !== caseId) return;
+      const record = normalizeExistingRecord(injected);
+      if (!record || !record.caseId) return;
+      currentEditingCaseId = record.caseId || '';
+      saveRecord(record);
+      populateForm(record);
+      renderSavedShell(record, '已載入案件，可修改後重新儲存');
+      if (window.INITIAL_EDIT_BINDING) renderLineBindingStatus(window.INITIAL_EDIT_BINDING, record);
+      else document.getElementById('lineBindingStatus').textContent = 'LINE 綁定狀態載入中';
+    })();
+
+    amountInput.addEventListener('blur', () => {
+      const digitsOnly = normalizeAmountDigits(amountInput.value);
+      if (!digitsOnly) return;
+      amountInput.value = formatAmountText(digitsOnly);
+    });
+
+    amountInput.addEventListener('focus', () => {
+      const digitsOnly = normalizeAmountDigits(amountInput.value);
+      if (digitsOnly) amountInput.value = digitsOnly;
+    });
+
+    async function handleWarrantySubmit() {
+      try {
+        setDebugStatus('submit: start');
+        const draft = buildRecord(form);
+        const isEditing = !!currentEditingCaseId;
+        setDebugStatus(`submit: buildRecord ok｜mode=${isEditing ? 'update' : 'create'}｜project=${draft.projectName || '(empty)'}`);
+        if (!confirmCreate(draft, isEditing ? 'update' : 'create')) {
+          setDebugStatus('submit: confirm cancelled');
+          return;
+        }
+        setDebugStatus('submit: confirm ok');
+        if (isEditing) {
+          document.getElementById('resultPanel').classList.remove('hidden');
+          document.getElementById('statusBox').textContent = '更新中｜寫入後端資料';
+        } else {
+          hideResultPanel();
+        }
+        setDebugStatus('submit: pushToApi start');
+        const apiResult = await pushToApi(draft);
+        setDebugStatus(`submit: pushToApi returned｜success=${!!(apiResult && apiResult.success)}｜caseId=${(apiResult && apiResult.warranty && apiResult.warranty.caseId) || ''}`);
+        if (!apiResult || !apiResult.success || !apiResult.warranty) {
+          alert((apiResult && apiResult.message) || '案件寫入後端失敗');
+          document.getElementById('statusBox').textContent = '後端寫入失敗';
+          return;
+        }
+        const record = normalizeExistingRecord(apiResult.warranty);
+        currentEditingCaseId = record.caseId || '';
+        saveRecord(record);
+        if (isEditing) {
+          await showSaved(record, '已更新案件並寫入後端');
+          setDebugStatus(`submit: update done｜caseId=${record.caseId}`);
+          alert(`修改完成｜案件編號 ${record.caseId}`);
+          return;
+        }
+        setDebugStatus(`submit: create done｜caseId=${record.caseId}`);
+        alert(`建立完成｜案件編號 ${record.caseId}`);
+        resetCreateMode();
+      } catch (error) {
+        const message = (error && error.message) || String(error) || '未知錯誤';
+        setDebugStatus(`submit: catch｜${message}`);
+        document.getElementById('statusBox').textContent = `建立失敗｜${message}`;
+        alert(`建立失敗：${message}`);
+      }
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      await handleWarrantySubmit();
+    });
+
+    document.getElementById('submitWarrantyBtn').addEventListener('click', async () => {
+      setDebugStatus('click: submitWarrantyBtn');
+      await handleWarrantySubmit();
+    });
+
+    async function enterEditModeWithRecord(rawRecord) {
+      const record = normalizeExistingRecord(rawRecord);
+      if (!record || !record.caseId) return false;
+      currentEditingCaseId = record.caseId || '';
+      saveRecord(record);
+      populateForm(record);
+      await showSaved(record, '已載入案件，可修改後重新儲存');
+      document.getElementById('statusBox').textContent = `修改模式｜案件編號 ${record.caseId}`;
+      return true;
+    }
+
+    async function handleIncomingEditRequest() {
+      const caseId = String(window.INITIAL_EDIT_CASE_ID || getQueryParam('editCaseId') || '').trim();
+      if (!caseId) return;
+
+      const debugParts = [
+        `clientCaseId=${JSON.stringify(caseId)}`,
+        `viewerIsManager=${JSON.stringify(!!window.ADMIN_VIEWER_IS_MANAGER)}`,
+        `hasInjected=${JSON.stringify(!!window.INITIAL_EDIT_RECORD)}`,
+        `injectedCaseId=${JSON.stringify(window.INITIAL_EDIT_RECORD && window.INITIAL_EDIT_RECORD.caseId || '')}`
+      ];
+
+      // 第一優先：伺服器渲染時注入的完整案件資料（不需任何後續請求，最可靠）
+      const injected = window.INITIAL_EDIT_RECORD;
+      if (injected && String(injected.caseId || '').trim() === caseId) {
+        debugParts.push('path=injected');
+        if (await enterEditModeWithRecord(injected)) {
+          debugParts.push('enterEditModeWithRecord=ok');
+          clearStagedEditRecord();
+          const debugNode = document.querySelector('.wrap > div');
+          if (debugNode) debugNode.textContent += '\nCLIENT｜' + debugParts.join(' | ');
+          return;
+        }
+        debugParts.push('enterEditModeWithRecord=returned-false');
+      }
+
+      // 第二：Query 頁 stage 的 sessionStorage（同沙箱來源時可用）
+      const stagedRecord = getStagedEditRecord(caseId);
+      if (stagedRecord) debugParts.push(`stagedCaseId=${JSON.stringify(stagedRecord.caseId || '')}`);
+      if (stagedRecord && await enterEditModeWithRecord(stagedRecord)) {
+        debugParts.push('path=staged');
+        clearStagedEditRecord();
+        const debugNode = document.querySelector('.wrap > div');
+        if (debugNode) debugNode.textContent += '\nCLIENT｜' + debugParts.join(' | ');
+        return;
+      }
+
+      // 第三：即時向後端讀取
+      if (!window.ADMIN_VIEWER_IS_MANAGER) {
+        debugParts.push('path=blocked-non-manager');
+        const debugNode = document.querySelector('.wrap > div');
+        if (debugNode) debugNode.textContent += '\nCLIENT｜' + debugParts.join(' | ');
+        alert('修改既有案件僅限管理者');
+        return;
+      }
+      debugParts.push('path=remote-fetch');
+      await loadRecordForEdit(caseId);
+      debugParts.push('remote-fetch=done');
+      const debugNode = document.querySelector('.wrap > div');
+      if (debugNode) debugNode.textContent += '\nCLIENT｜' + debugParts.join(' | ');
+    }
+
+    handleIncomingEditRequest().catch((error) => {
+      console.warn('handleIncomingEditRequest failed', error);
+      // 失敗不再無聲：讓使用者看得到原因，避免「以為只是跳到建立頁」
+      alert(`進入修改模式失敗：${(error && error.message) || '未知錯誤'}\n請回查詢頁重試，或截圖此訊息回報。`);
+    });
+  </script>
+</body>
+</html>
