@@ -13,7 +13,9 @@
     .wrap { width:min(980px,100%); margin:0 auto; display:grid; gap:18px; }
     .hero,.panel,.card { background:linear-gradient(180deg,rgba(37,31,26,.96),rgba(20,17,15,.98)); border:1px solid var(--line); border-radius:22px; box-shadow:0 20px 60px rgba(0,0,0,.28); }
     .hero { padding:24px; display:grid; gap:10px; }
+    .panel { padding:16px 14px 14px; display:grid; gap:12px; }
     .hero h1,.panel h2,.card h2 { margin:0; color:var(--gold); }
+    .panel h2 { font-size:16px; line-height:1.2; letter-spacing:.04em; padding:0 4px; }
     .small,p { margin:0; color:var(--muted); line-height:1.8; }
     .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
     .summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
@@ -25,9 +27,9 @@
     .status { padding:12px 14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.08); color:#f2e3c4; }
     .metric { font-size:34px; font-weight:700; color:var(--ink); }
     .list { display:grid; gap:10px; }
-    .list-item { padding:12px 14px; border-radius:14px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); display:grid; gap:4px; }
-    .list-item strong { color:#f7efdf; }
-    .meta { color:var(--muted); font-size:13px; }
+    .list-item { padding:14px 16px; border-radius:18px; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.07); display:grid; gap:6px; }
+    .list-item strong { color:#f7efdf; font-size:17px; line-height:1.35; font-weight:700; }
+    .meta { color:var(--muted); font-size:14px; line-height:1.55; }
     @media (max-width: 900px) { .grid, .summary-grid { grid-template-columns:1fr; } }
   </style>
 </head>
@@ -129,7 +131,6 @@
     })();
   </script>
   <script>
-
     function loadJsonp(url) {
       return new Promise((resolve, reject) => {
         const callbackName = '__dashboardCallback_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
