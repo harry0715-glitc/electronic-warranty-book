@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <base target="_top" />
+  <title>後台入口</title>
+  <style>
+    :root { --bg:#141210; --panel:#1f1b18; --gold:#d1b07a; --ink:#f7efdf; --muted:rgba(247,239,223,.72); --line:rgba(209,176,122,.22); }
+    * { box-sizing:border-box; }
+    html, body { margin:0; min-height:100%; background:linear-gradient(180deg,#0f0d0c,#181410 48%,#120f0d); color:var(--ink); font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif; }
+    body { padding:20px 14px 40px; }
+    .wrap { width:min(980px,100%); margin:0 auto; display:grid; gap:18px; }
+    .hero,.panel,.card { background:linear-gradient(180deg,rgba(37,31,26,.96),rgba(20,17,15,.98)); border:1px solid var(--line); border-radius:22px; box-shadow:0 20px 60px rgba(0,0,0,.28); }
+    .hero { padding:24px; display:grid; gap:10px; }
+    .hero h1,.panel h2,.card h2 { margin:0; color:var(--gold); }
+    .small,p { margin:0; color:var(--muted); line-height:1.8; }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+    .summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+    .card { padding:18px; display:grid; gap:12px; }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .btn { border:0; border-radius:12px; padding:12px 18px; font:inherit; font-weight:700; text-decoration:none; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+    .primary { background:linear-gradient(180deg,#ecd7ac,#c89f60); color:#22190f; }
+    .secondary { background:#2a241f; color:var(--ink); border:1px solid var(--line); }
+    .status { padding:12px 14px; border-radius:14px; background:#120f0d; border:1px solid rgba(255,255,255,.08); color:#f2e3c4; }
+    .metric { font-size:34px; font-weight:700; color:var(--ink); }
+    .list { display:grid; gap:10px; }
+    .list-item { padding:12px 14px; border-radius:14px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); display:grid; gap:4px; }
+    .list-item strong { color:#f7efdf; }
+    .meta { color:var(--muted); font-size:13px; }
+    @media (max-width: 900px) { .grid, .summary-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>電子保固書後台入口</h1>
+      <p>登入帳號：<strong>管理金鑰登入</strong>｜角色：<strong>manager</strong></p>
+    </section>
+
+    <section class="summary-grid">
+      <div class="card">
+        <h2>保固案件總數</h2>
+        <div class="metric" id="totalCasesValue">--</div>
+      </div>
+      <div class="card">
+        <h2>保固生效中</h2>
+        <div class="metric" id="activeCasesValue">--</div>
+      </div>
+      <div class="card">
+        <h2>待處理報修</h2>
+        <div class="metric" id="pendingRepairsValue">--</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>新增保固</h2>
+        <div class="actions"><a class="btn primary" href="admin.html">進入新增保固</a></div>
+      </div>
+      <div class="card">
+        <h2>查詢 / 報修管理</h2>
+        <div class="actions"><a class="btn primary" href="query.html">進入查詢管理</a></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>最近案件</h2>
+      <div class="list" id="recentCasesList">
+        <div class="status">載入中…</div>
+      </div>
+    </section>
+  </div>
+  <script src="api-config.js?v=20260713-admin-shell"></script>
+  <script>
+    (function () {
+      function readJson(key) {
+        try { return JSON.parse(sessionStorage.getItem(key) || 'null'); }
+        catch (_) { return null; }
+      }
+      var query = new URLSearchParams(location.search || '');
+      var storedEditCaseId = sessionStorage.getItem('warranty_admin_edit_case_id') || '';
+      var storedEditRecord = readJson('warranty_admin_edit_record');
+      window.APP_CONFIG = Object.assign({}, window.APP_CONFIG || {}, {
+        apiBase: (window.APP_CONFIG && window.APP_CONFIG.adminApiBase) || (window.APP_CONFIG && window.APP_CONFIG.apiBase) || '',
+        useGoogleSessionAuth: false
+      });
+      window.ADMIN_PAGE_URL = 'admin.html';
+      window.QUERY_PAGE_URL = 'query.html';
+      window.DASHBOARD_PAGE_URL = 'dashboard.html';
+      window.ADMIN_VIEWER_EMAIL = '';
+      window.ADMIN_VIEWER_ROLE = 'manager';
+      window.ADMIN_VIEWER_IS_MANAGER = true;
+      window.INITIAL_EDIT_CASE_ID = String(query.get('editCaseId') || storedEditCaseId || '').trim();
+      window.__SSR_EDIT_BOOTSTRAP = storedEditRecord && storedEditRecord.caseId === window.INITIAL_EDIT_CASE_ID ? storedEditRecord : null;
+      window.__SSR_EDIT_BINDING = null;
+      window.INITIAL_EDIT_RECORD = window.__SSR_EDIT_BOOTSTRAP;
+      window.INITIAL_EDIT_BINDING = null;
+      window.__SSR_EDIT_BINDING_TEXT = '尚未查詢';
+      window.ADMIN_DEBUG = /(?:^|[?&])debug=1(?:&|$)/.test(location.search);
+      if (window.ADMIN_DEBUG) {
+        var debugBox = document.getElementById('debugStatusBox');
+        if (debugBox) debugBox.classList.remove('hidden');
+      }
+    })();
+  </script>
+  <script>
+
+    function loadJsonp(url) {
+      return new Promise((resolve, reject) => {
+        const callbackName = '__dashboardCallback_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+        const script = document.createElement('script');
+        window[callbackName] = (payload) => {
+          delete window[callbackName];
+          script.remove();
+          resolve(payload);
+        };
+        script.onerror = () => {
+          delete window[callbackName];
+          script.remove();
+          reject(new Error('讀取資料失敗'));
+        };
+        const separator = url.includes('?') ? '&' : '?';
+        script.src = `${url}${separator}callback=${callbackName}`;
+        document.body.appendChild(script);
+      });
+    }
+
+    function getStoredAdminApiKey() {
+      return String(sessionStorage.getItem('warranty_admin_api_key') || '').trim();
+    }
+
+    function setStoredAdminApiKey(value) {
+      const normalized = String(value || '').trim();
+      if (normalized) sessionStorage.setItem('warranty_admin_api_key', normalized);
+      else sessionStorage.removeItem('warranty_admin_api_key');
+      return normalized;
+    }
+
+    function requestAdminApiKey(actionLabel, force = false) {
+      if ((window.APP_CONFIG && window.APP_CONFIG.useGoogleSessionAuth)) return '';
+      if (!force) {
+        const stored = getStoredAdminApiKey();
+        if (stored) return stored;
+        const embedded = String((window.APP_CONFIG && window.APP_CONFIG.adminKey) || '').trim();
+        if (embedded) return setStoredAdminApiKey(embedded);
+      }
+      const input = window.prompt(`${actionLabel}需要輸入管理 API 金鑰`, force ? '' : (getStoredAdminApiKey() || String((window.APP_CONFIG && window.APP_CONFIG.adminKey) || '').trim()));
+      if (input === null) return null;
+      return setStoredAdminApiKey(input);
+    }
+
+    function buildAdminUrl(action, params = {}) {
+      const adminKey = requestAdminApiKey(action);
+      if (adminKey === null) throw new Error('未提供管理 API 金鑰');
+      const search = new URLSearchParams({ action });
+      if (adminKey) search.set('adminKey', adminKey);
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        search.set(key, String(value));
+      });
+      return `${APP_CONFIG.apiBase}?${search.toString()}`;
+    }
+
+    async function loadAdminJsonp(action, params = {}, retry = true) {
+      const url = buildAdminUrl(action, params);
+      try {
+        return await loadJsonp(url);
+      } catch (error) {
+        if (retry && /管理 API 驗證失敗/.test(String(error && error.message || ''))) {
+          setStoredAdminApiKey('');
+          requestAdminApiKey(action, true);
+          return await loadAdminJsonp(action, params, false);
+        }
+        throw error;
+      }
+    }
+
+    function escapeHtml(text) {
+      return String(text || '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+
+    async function loadDashboard() {
+      const [warrantiesResult, repairsResult] = await Promise.all([
+        loadAdminJsonp('listWarrantyRecords'),
+        loadAdminJsonp('listRepairs')
+      ]);
+
+      const warranties = Array.isArray((warrantiesResult && warrantiesResult.items)) ? warrantiesResult.items : [];
+      const repairs = Array.isArray((repairsResult && repairsResult.items)) ? repairsResult.items : [];
+      const pendingRepairs = repairs.filter(item => String(item.status || '').trim() === 'pending');
+      const activeCases = warranties.filter(item => String(item.statusKey || '') === 'active');
+
+      document.getElementById('totalCasesValue').textContent = String(warranties.length);
+      document.getElementById('activeCasesValue').textContent = String(activeCases.length);
+      document.getElementById('pendingRepairsValue').textContent = String(pendingRepairs.length);
+
+      const list = document.getElementById('recentCasesList');
+      if (!warranties.length) {
+        list.innerHTML = '<div class="status">目前沒有案件</div>';
+        return;
+      }
+
+      const recent = warranties.slice(0, 6);
+      list.innerHTML = recent.map(item => `
+        <div class="list-item">
+          <strong>${escapeHtml(item.projectName || item.caseId || '未命名案件')}</strong>
+          <div class="meta">${escapeHtml(item.caseId || '')}｜${escapeHtml(item.customerName || '未提供客戶')}｜${escapeHtml(item.statusText || '')}</div>
+          <div class="meta">${escapeHtml(item.address || '未提供地址')}</div>
+        </div>
+      `).join('');
+    }
+
+    loadDashboard().catch((error) => {
+      document.getElementById('recentCasesList').innerHTML = `<div class="status">載入失敗：${escapeHtml(error.message || '未知錯誤')}</div>`;
+    });
+  </script>
+</body>
+</html>
