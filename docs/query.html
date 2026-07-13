@@ -66,12 +66,30 @@
         try { return JSON.parse(sessionStorage.getItem(key) || 'null'); }
         catch (_) { return null; }
       }
+      function normalizeKey(value) {
+        return String(value || '').trim();
+      }
+      function readHashParam(name) {
+        var hash = String(location.hash || '');
+        if (!hash) return '';
+        var raw = hash.charAt(0) === '#' ? hash.slice(1) : hash;
+        var params = new URLSearchParams(raw);
+        return normalizeKey(params.get(name));
+      }
+      function persistAdminKey(value) {
+        var normalized = normalizeKey(value);
+        if (normalized) sessionStorage.setItem('warranty_admin_api_key', normalized);
+        return normalized;
+      }
       var query = new URLSearchParams(location.search || '');
+      var urlAdminKey = normalizeKey(query.get('adminKey') || readHashParam('adminKey'));
+      var storedAdminKey = persistAdminKey(urlAdminKey || sessionStorage.getItem('warranty_admin_api_key') || '');
       var storedEditCaseId = sessionStorage.getItem('warranty_admin_edit_case_id') || '';
       var storedEditRecord = readJson('warranty_admin_edit_record');
       window.APP_CONFIG = Object.assign({}, window.APP_CONFIG || {}, {
         apiBase: (window.APP_CONFIG && window.APP_CONFIG.adminApiBase) || (window.APP_CONFIG && window.APP_CONFIG.apiBase) || '',
-        useGoogleSessionAuth: false
+        useGoogleSessionAuth: false,
+        adminKey: storedAdminKey
       });
       window.ADMIN_PAGE_URL = 'admin.html';
       window.QUERY_PAGE_URL = 'query.html';
@@ -89,6 +107,12 @@
       if (window.ADMIN_DEBUG) {
         var debugBox = document.getElementById('debugStatusBox');
         if (debugBox) debugBox.classList.remove('hidden');
+      }
+      if (urlAdminKey && window.history && window.history.replaceState) {
+        query.delete('adminKey');
+        var cleanSearch = query.toString();
+        var cleanUrl = location.pathname + (cleanSearch ? '?' + cleanSearch : '');
+        history.replaceState(null, document.title, cleanUrl);
       }
     })();
   </script>
