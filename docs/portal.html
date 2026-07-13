@@ -7,9 +7,7 @@
   <style>
     :root {
       --gold:#d5b06b;
-      --gold-soft:#f4dfb6;
       --ink:#f7efdf;
-      --muted:rgba(247,239,223,.72);
       --line:rgba(213,176,107,.18);
     }
     * { box-sizing:border-box; }
@@ -37,19 +35,17 @@
       justify-items:center;
       text-align:center;
     }
-    .badge {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-width:64px;
-      height:64px;
-      padding:0 16px;
-      border-radius:20px;
-      background:linear-gradient(180deg,#f4dfb6,#c99b53);
-      color:#20150c;
-      font-size:26px;
-      font-weight:800;
-      letter-spacing:.08em;
+    .logo-wrap {
+      width:min(100%, 380px);
+      display:grid;
+      place-items:center;
+      padding:8px 0 4px;
+    }
+    .logo {
+      display:block;
+      width:100%;
+      height:auto;
+      filter:drop-shadow(0 10px 24px rgba(0,0,0,.22));
     }
     h1 {
       margin:0;
@@ -57,12 +53,6 @@
       font-size:32px;
       line-height:1.28;
       letter-spacing:.04em;
-    }
-    .sub {
-      margin:0;
-      color:var(--muted);
-      font-size:13px;
-      letter-spacing:.22em;
     }
     .actions {
       display:flex;
@@ -84,7 +74,7 @@
       align-items:center;
       justify-content:center;
       min-width:168px;
-      transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+      transition:transform .16s ease, box-shadow .16s ease;
     }
     a.btn:hover {
       transform:translateY(-1px);
@@ -101,6 +91,7 @@
     }
     @media (max-width: 520px) {
       .card { padding:28px 22px; }
+      .logo-wrap { width:min(100%, 320px); }
       h1 { font-size:28px; }
       .actions { flex-direction:column; }
       a.btn { width:100%; min-width:0; }
@@ -109,9 +100,10 @@
 </head>
 <body>
   <main class="card">
-    <div class="badge">FG</div>
-    <p class="sub">FENG GEN DESIGN</p>
-    <h1>楓根設計電子保固卡後台登入</h1>
+    <div class="logo-wrap">
+      <img class="logo" src="assets/fenggen-logo.png" alt="楓根設計 Logo" />
+    </div>
+    <h1>電子保固卡後台登入</h1>
     <div class="actions">
       <a class="primary btn" href="https://script.google.com/macros/s/AKfycbxK3U_BbLdI335S6vUn_RX93_CzNARuj4upTDVkwySJBtfpNVqNnriKQZm91qJrf1QsIw/exec?page=dashboard" target="_blank" rel="noopener">登入後台</a>
       <a class="secondary btn" href="https://script.google.com/macros/s/AKfycbxK3U_BbLdI335S6vUn_RX93_CzNARuj4upTDVkwySJBtfpNVqNnriKQZm91qJrf1QsIw/exec?page=query" target="_blank" rel="noopener">查詢保固書</a>
