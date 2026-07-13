@@ -25,46 +25,15 @@
       <h1>楓根後台登入入口</h1>
     </div>
     <div class="actions">
-      <a class="primary btn" href="dashboard.html" target="_blank" rel="noopener">登入後台</a>
-      <a class="secondary btn" href="query.html" target="_blank" rel="noopener">查詢保固書</a>
+      <a class="primary btn" href="https://script.google.com/macros/s/AKfycbxK3U_BbLdI335S6vUn_RX93_CzNARuj4upTDVkwySJBtfpNVqNnriKQZm91qJrf1QsIw/exec?page=dashboard" target="_blank" rel="noopener">登入後台</a>
+      <a class="secondary btn" href="https://script.google.com/macros/s/AKfycbxK3U_BbLdI335S6vUn_RX93_CzNARuj4upTDVkwySJBtfpNVqNnriKQZm91qJrf1QsIw/exec?page=query" target="_blank" rel="noopener">查詢保固書</a>
     </div>
-      <div class="note">
+    <div class="note">
       <ul>
-        <li>若入口網址帶有 <code>adminKey</code>，本頁會自動保存並帶入後台，不用每頁重打。</li>
-        <li>保存後會沿用同一個瀏覽器分頁 / 視窗的登入狀態。</li>
+        <li>後台入口已切回 Apps Script，沿用既有 Google 帳號權限流程。</li>
+        <li>GitHub Pages 僅保留前台 / 公開頁，不再作為正式後台入口。</li>
       </ul>
     </div>
   </main>
-  <script>
-    (function () {
-      function normalizeKey(value) {
-        return String(value || '').trim();
-      }
-      function readHashParam(name) {
-        var hash = String(location.hash || '');
-        if (!hash) return '';
-        var raw = hash.charAt(0) === '#' ? hash.slice(1) : hash;
-        var params = new URLSearchParams(raw);
-        return normalizeKey(params.get(name));
-      }
-      var query = new URLSearchParams(location.search || '');
-      var urlAdminKey = normalizeKey(query.get('adminKey') || readHashParam('adminKey'));
-      var storedAdminKey = normalizeKey(sessionStorage.getItem('warranty_admin_api_key') || '');
-      var adminKey = urlAdminKey || storedAdminKey;
-      if (adminKey) sessionStorage.setItem('warranty_admin_api_key', adminKey);
-      Array.prototype.forEach.call(document.querySelectorAll('.actions a[href]'), function (link) {
-        var href = String(link.getAttribute('href') || '').trim();
-        if (!href || /^https?:/i.test(href)) return;
-        var target = new URL(href, location.href);
-        if (adminKey) target.searchParams.set('adminKey', adminKey);
-        link.setAttribute('href', target.pathname.split('/').pop() + target.search);
-      });
-      if (urlAdminKey && window.history && window.history.replaceState) {
-        query.delete('adminKey');
-        var cleanSearch = query.toString();
-        history.replaceState(null, document.title, location.pathname + (cleanSearch ? '?' + cleanSearch : ''));
-      }
-    })();
-  </script>
 </body>
 </html>
